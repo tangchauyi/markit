@@ -5,3 +5,7 @@ dist/
 # 日志与临时文件
 *.log
 .DS_Store
+
+# 本地使用文档（不入库）：发布页附注与转发文案
+docs/README-mini.md
+docs/README-share.md
