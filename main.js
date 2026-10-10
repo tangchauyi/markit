@@ -82,6 +82,18 @@ function registerAppScheme() {
   protocol.handle(SCHEME, (request) => {
     const url = new URL(request.url);
     if (url.pathname !== '/index.html' && url.pathname !== '/') {
+      /* v2.0 单文件拆分：回落到磁盘静态资源（assets/**）。
+         白名单扩展名 + 归一化后必须落在 __dirname 内，防目录逃逸；行为零变更（原为 404 的仅 assets 路径）。 */
+      const MIME = { '.css': 'text/css; charset=utf-8', '.js': 'application/javascript; charset=utf-8' };
+      const rel0 = decodeURIComponent(url.pathname).replace(/^\/+/, '');
+      const file = path.normalize(path.join(__dirname, rel0));
+      const ext = path.extname(file).toLowerCase();
+      /* 白名单仅限 assets/ 下（QA P2 收紧：原实现覆盖整个 __dirname，node_modules 内文件可被 SERVE） */
+      if (MIME[ext] && rel0.startsWith('assets' + path.sep) && file.startsWith(__dirname + path.sep)) {
+        try {
+          return new Response(fs.readFileSync(file), { headers: { 'content-type': MIME[ext] } });
+        } catch (e) { return new Response('not found', { status: 404 }); }
+      }
       return new Response('not found', { status: 404 });
     }
     let html;

@@ -89,12 +89,16 @@ localStorage._s.markit_notes = JSON.stringify([
   { id: 'e', text: '脏数据E', priority: 3, createdAt: 5, status: 'weird' } // 非法 → open
 ]);
 
-/* ---------------- 加载被测脚本（去掉 use strict 以便 eval 变量入当前作用域） ---------------- */
-var html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-var m = /<script>([\s\S]*)<\/script>/.exec(html);
-if (!m) { console.error('FATAL: 未提取到内联 script'); process.exit(1); }
-var src = m[1].replace(/'use strict';/, '');
-eval(src); // var/function 进入本作用域
+/* ---------------- 加载被测脚本（v2.0 单文件拆分后改读 assets/js/app.js，断言一条不改） ----------------
+   去掉 use strict 以便 direct eval 的 var/function 进入本作用域（原内联提取语义等价）。
+   文本断言用的 `html` 变量拼合 HTML/CSS/JS 三份源码——既有断言（T7/T8）混合引用
+   三段内容（HTML 结构 / CSS token 与规则 / JS 内 ZONE_NAMES 字面量），拼合后逐条语义不变。 */
+var html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8')
+  + '\n' + fs.readFileSync(path.join(__dirname, '..', 'assets', 'css', 'app.css'), 'utf8')
+  + '\n' + fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'app.js'), 'utf8');
+var src = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'app.js'), 'utf8');
+if (!src) { console.error('FATAL: assets/js/app.js 为空'); process.exit(1); }
+eval(src.replace(/'use strict';/, '')); // var/function 进入本作用域
 
 /* ---------------- 断言 ---------------- */
 var passed = 0, failed = 0;

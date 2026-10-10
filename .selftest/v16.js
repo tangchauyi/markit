@@ -192,10 +192,15 @@ localStorage._s.markit_notes = JSON.stringify([
 ]);
 
 /* ---------------- 加载被测脚本 ---------------- */
-var html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-var m = /<script>([\s\S]*)<\/script>/.exec(html);
-if (!m) { console.error('FATAL: 未提取到内联 script'); process.exit(1); }
-eval(m[1].replace(/'use strict';/, ''));
+/* ---------------- 加载被测脚本（v2.0 单文件拆分后改读 assets/js/app.js，断言一条不改） ----------------
+   同 harness.js：`html` 拼合 HTML/CSS/JS 三份源码（G4a/G5a/G5b 为 CSS 规则断言、
+   T 组风格结构断言读 HTML、行为断言 eval app.js），direct eval 语义不变。 */
+var html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8')
+  + '\n' + fs.readFileSync(path.join(__dirname, '..', 'assets', 'css', 'app.css'), 'utf8')
+  + '\n' + fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'app.js'), 'utf8');
+var appSrc = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'app.js'), 'utf8');
+if (!appSrc) { console.error('FATAL: assets/js/app.js 为空'); process.exit(1); }
+eval(appSrc.replace(/'use strict';/, ''));
 
 /* ---------------- 断言 ---------------- */
 var passed = 0, failed = 0;

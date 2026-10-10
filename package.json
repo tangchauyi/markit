@@ -23,6 +23,7 @@
       "main.js",
       "preload.js",
       "index.html",
+      "assets/**",
       "package.json"
     ],
     "mac": {

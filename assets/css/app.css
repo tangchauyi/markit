@@ -1,0 +1,1279 @@
+/* ============================================================
+   Mark it! — renderer（tagline: plan for it）
+   单文件交付：HTML + CSS + JS 全内联，零依赖零构建
+   Token 全部照抄 design.md（浅色/深色双套，跟随系统）
+   ============================================================ */
+
+/* ---------- 设计 token（浅色） ---------- */
+:root {
+  --bg-panel: #F2F2F7EE;
+  --bg-card: #FFFFFFCC;
+  --text-primary: #1D1D1F;
+  --text-secondary: #8E8E93;
+  --p0: #FF3B30;
+  --p1: #FF9500;
+  --p2: #FFCC00;
+  --p3: #8E8E93;
+  --stroke: #00000014;
+  --hover: #0000000A;
+  --focus: #007AFF;
+  --popover-bg: #FFFFFFF2;
+  --pin-bg: #007AFF14;        /* 已固定态常驻淡色底（design v1.2 §D） */
+  --pin-bg-hover: #007AFF1F;  /* 已固定态 hover 加深底 */
+  /* ---------- v1.3 增补 token（design §G/§H/§I/§K） ---------- */
+  --grad-brand: linear-gradient(135deg, #FA5C8D 0%, #FBAF5D 100%); /* 渐变仅作强调点缀，禁入正文/分区色条 */
+  --pink: #FA5C8D;            /* 状态按钮 hover 图标色（渐变单端色） */
+  --glow: #FA5C8D1F;          /* 输入框聚焦外发光 */
+  --text-muted-strong: #6D6D72; /* 有意义辅助文字（空态/提示），对比 4.6:1 */
+  --bar-dropped: #C7C7CC;     /* 放弃态左色条（v1.8a 对调：放弃=灰，完成=分区色残影） */
+  --bg-card-done: #FFFFFF99;  /* 完成态条背景 */
+  --dropped-text: #B9B9BE;    /* 不干了态文字色 */
+  --hover-shadow: 0 2px 8px rgba(0, 0, 0, 0.10); /* 笔记 hover 阴影 */
+  /* ---------- v1.4 增补 token（日历，design §L-§P） ---------- */
+  --cal-card-bg: #F2F2F7F8;    /* 覆盖层卡片底（§M，比 bg-panel 更实以遮底层） */
+  --cal-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);  /* 覆盖层卡片阴影（§M） */
+  --cal-future: #C7C7CC;       /* 未来日期数字（§N） */
+  --cal-done-ic: #FBAF5D;      /* 详情「完成」组图标色（§O） */
+  --cal-active-bg: #FA5C8D14;  /* 日历按钮激活态常驻底（§L，沿用图钉已固定态手法） */
+  --cal-active-bg-hover: #FA5C8D1F;
+  /* ---------- v1.5 增补 token（design §S/§U：下拉卡片详情区滚动条） ---------- */
+  --cal-scroll: #0000001A;
+  --cal-scroll-hover: #0000002E;
+  /* ---------- v1.6 增补 token（design §W：悬停粘贴） ---------- */
+  --paste-flash: #FA5C8D26;   /* 新建入场高亮起始色（F2/F3/F17 统一入场动画） */
+  /* ---------- v1.7 增补 token（design §AA，间距深浅色同值） ---------- */
+  --space-toast-gap: 8px;     /* undo toast 与底部模块上边线的垂直间距（F21） */
+  /* ---------- v1.8 增补 token（design §AB，深浅色同值） ---------- */
+  --zone-foot-min: 36px;      /* 分区底部常驻空白区最小高度（F23，PRD 下限：与笔记条高 36px 同值，模块节奏一致） */
+  --drag-shadow: 0 8px 24px rgba(0, 0, 0, 0.20);  /* v1.9 F25 长按拖拽：就绪态抬升阴影（深色 0.45） */
+}
+
+/* ---------- 设计 token（深色） ---------- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-panel: #1E1E24EE;
+    --bg-card: #2A2A32CC;
+    --text-primary: #F5F5F7;
+    --text-secondary: #98989F;
+    --p0: #FF453A;
+    --p1: #FF9F0A;
+    --p2: #FFD60A;
+    --p3: #6C6C72;
+    --stroke: #FFFFFF14;
+    --hover: #FFFFFF0F;
+    --focus: #0A84FF;
+    --popover-bg: #32323AC8;
+    --pin-bg: #0A84FF1F;
+    --pin-bg-hover: #0A84FF2E;
+    /* ---------- v1.3 增补 token（深色，design §G：渐变整体提亮一档防沉入深底） ---------- */
+    --grad-brand: linear-gradient(135deg, #FB7AA5 0%, #FCBB74 100%);
+    --pink: #FB7AA5;
+    --glow: #FB7AA51F;
+    --text-muted-strong: #A5A5AC; /* 对比 6.8:1 */
+    --bar-dropped: #48484E;
+    --bg-card-done: #2A2A3280;
+    --dropped-text: #7C7C84;
+    --hover-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    /* ---------- v1.4 增补 token（深色，design §L-§P） ---------- */
+    --cal-card-bg: #1E1E24F8;
+    --cal-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --cal-future: #48484E;
+    --cal-done-ic: #FCBB74;
+    --cal-active-bg: #FB7AA51F;
+    --cal-active-bg-hover: #FB7AA52E;
+    /* v1.5/v1.6 增补（§S/§U/§W 深色） */
+    --cal-scroll: #FFFFFF1A;
+    --cal-scroll-hover: #FFFFFF2E;
+    --paste-flash: #FB7AA526;
+    /* ---------- v1.9 增补 token（design §AE，F25 长按拖拽） ---------- */
+    --drag-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  }
+}
+
+/* ---------- 基础 ---------- */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "PingFang SC", sans-serif;
+  line-height: 1.4;
+  color: var(--text-primary);
+  background: transparent; /* Electron vibrancy 由主进程接管 */
+  font-size: 13px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.app { height: 100vh; position: relative; }
+
+/* ---------- 展开态：毛玻璃面板 ---------- */
+.board {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(24px) saturate(1.4);
+}
+.app.collapsed .board { display: none; }
+
+/* ---------- 顶栏（唯一 drag 区之一） ---------- */
+.topbar {
+  flex: none;
+  height: 48px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  -webkit-app-region: drag;
+  border-bottom: 1px solid var(--stroke);
+  position: relative;   /* 顶栏（含 tooltip）恒在日历覆盖层 z20 之上（design §M） */
+  z-index: 30;
+}
+.app-name {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topbar .spacer { flex: 1; }
+
+/* 产品名旁渐变✓小方块（design §K）：与 icon 同源强化品牌，深浅色通用 */
+.brand-group {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.brand-mark {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  background: var(--grad-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---------- 固定按钮（F11：纯图钉图标 + hover tooltip，design.md v1.2 增补 A-F） ---------- */
+.pin-btn {
+  position: relative;   /* tooltip 绝对定位锚点 */
+  margin-right: -4px;   /* 右组「固定 ↔ 收起」间距 4px（design §D；顶栏基础 gap 8px） */
+}
+.pin-btn svg { display: block; }
+.pin-btn svg path {           /* 未固定态：描边灰（§A） */
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.pin-btn.active {             /* 已固定态：实心品牌蓝 + 淡色圆角底（§A/§D） */
+  color: var(--focus);
+  background: var(--pin-bg);
+}
+.pin-btn.active svg path {
+  fill: currentColor;
+  stroke: none;
+}
+.pin-btn.active:hover {
+  color: var(--focus);        /* 覆写 .icon-btn:hover 的 text-primary */
+  background: var(--pin-bg-hover);
+}
+.pin-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* hover tooltip 气泡（§C：按钮下方居中，脱离文档流，pointer-events:none 不拦截点击） */
+.pin-tip {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 6px);
+  transform: translateX(-50%) translateY(4px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 10;
+  background: #1D1D1FF2;      /* 浅/深同用（§C） */
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: #F5F5F7;
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+  padding: 5px 10px;
+  border-radius: 6px;
+  transition: opacity 120ms ease-out, transform 120ms ease-out; /* 消失 delay 0ms */
+}
+.pin-tip::before {            /* 小三角：8×8 同背景色旋转 45deg（§C） */
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  margin-left: -4px;
+  width: 8px;
+  height: 8px;
+  background: #1D1D1FF2;
+  transform: rotate(45deg);
+}
+.pin-btn:hover .pin-tip,
+.pin-btn:focus-visible .pin-tip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  transition-delay: 150ms;    /* 浮现 delay 150ms 防掠过误触（§C） */
+}
+/* 两态文案互斥（§E），aria-pressed 已承担可访问性语义，气泡对 AT 隐藏 */
+.pin-btn .tip-on { display: none; }
+.pin-btn.active .tip-on { display: inline; }
+.pin-btn.active .tip-off { display: none; }
+
+.bottombar {
+  flex: none;
+  height: 48px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--stroke);
+}
+/* ---------- 渐变描边输入框 wrapper（design §K，底部/就地/原地编辑共用） ----------
+   常态 padding 1.5px 背景 stroke；focus-within 背景切 grad-brand = 渐变描边。
+   §5 原 #007AFF 聚焦描边自 v1.3 废弃（仅图钉已固定态仍用品牌蓝）。 */
+.bottombar .grad-wrap { flex: 1; min-width: 60px; }
+.grad-wrap {
+  padding: 1.5px;
+  border-radius: 10px;
+  background: var(--stroke);
+  transition: background 160ms ease-out, box-shadow 160ms ease-out;
+}
+.grad-wrap:focus-within {
+  background: var(--grad-brand);
+  box-shadow: 0 0 0 3px var(--glow);
+}
+.grad-wrap input {
+  display: block;
+  width: 100%;
+  border: none;
+  border-radius: 8.5px;
+  background: var(--bg-card);
+  padding: 0 8px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  -webkit-app-region: no-drag;
+  -webkit-user-select: text;
+  user-select: text;
+  outline: none;
+}
+.grad-wrap input::placeholder { color: var(--text-muted-strong); }
+.quick-input { height: 25px; }  /* wrapper 1.5px×2 + 25 = 原输入框 28px 总高 */
+.icon-btn {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: background 120ms ease, transform 120ms ease, color 120ms ease;
+}
+.icon-btn:hover { background: var(--hover); color: var(--text-primary); }
+.icon-btn:active { transform: scale(0.92); }
+.icon-btn svg { display: block; }
+
+/* ---------- 分区列表（唯一滚动区域，输入框永不被遮挡） ---------- */
+.sections {
+  flex: 1;
+  overflow-y: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.sections-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.sections::-webkit-scrollbar, .sections-scroll::-webkit-scrollbar { width: 4px; }
+.sections::-webkit-scrollbar-thumb, .sections-scroll::-webkit-scrollbar-thumb {
+  background: var(--stroke);
+  border-radius: 2px;
+}
+
+.zone {
+  flex: none;
+  padding-bottom: 0;
+  position: relative;               /* F17 悬停提示锚点（§W） */
+  border-bottom: 1px solid var(--stroke); /* 分区底部 1px stroke */
+  /* F17 可粘贴高亮（§W）：outline 基态常驻透明，挂载/卸载仅过渡颜色，零布局位移 */
+  outline: 1.5px dashed transparent;
+  outline-offset: -3px;
+  transition: outline-color 120ms ease-in;
+}
+.zone + .zone { margin-top: 8px; }           /* 分区间隔 8px */
+.zone.paste-ready {               /* 悬停且条件齐备（见 JS）：1.5px dashed 当前分区色（§W） */
+  border-radius: 10px;
+  outline-color: var(--zone);
+  transition: outline-color 180ms ease-out;
+  cursor: default;
+}
+/* F17 微提示「⌘V 粘贴到这里」（§W）：absolute 定位零 reflow，进出各 150/120ms */
+.zone::after {
+  content: "⌘V 粘贴到这里";
+  position: absolute;
+  top: 6px;
+  right: 12px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: #1D1D1FF2;           /* §C 气泡底，深浅一致（§W） */
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: #F5F5F7;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 20px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 120ms ease-in, transform 120ms ease-in;   /* 条件失效退场（§W） */
+}
+.zone.paste-ready::after {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 150ms ease-out, transform 150ms ease-out; /* 挂载进场（§W） */
+}
+.zone[data-p="0"] { --zone: var(--p0); }
+.zone[data-p="1"] { --zone: var(--p1); }
+.zone[data-p="2"] { --zone: var(--p2); }
+.zone[data-p="3"] { --zone: var(--p3); }
+
+/* ---------- F16 分区标题（design §V：徽标胶囊体系，取代旧「竖色条+分区名」） ---------- */
+.zone-head {
+  height: 32px;
+  padding: 0 12px 0 12px;
+  display: flex;
+  align-items: center;            /* 徽标 20px 于 32px 行内居中，防塌行 */
+  gap: 6px;
+  cursor: default;                /* 标题热区 cursor:default（§V），与下方空白区 text 区分 */
+}
+.zone-logo {                      /* 徽标胶囊：高 20、min宽 30、底=分区色、白字（§V） */
+  flex: none;
+  height: 20px;
+  min-width: 30px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: var(--zone);
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.zone[data-p="2"] .zone-logo,
+.zone[data-p="2"] .zone-badge { color: #1D1D1F; }  /* P2 黄底对比不足 → 深字（§V） */
+@media (prefers-color-scheme: dark) {
+  .zone[data-p="2"] .zone-logo,
+  .zone[data-p="2"] .zone-badge { color: #141418; }  /* P2 深色（§V） */
+}
+.zone-title {                     /* 完整模式常驻分区名：12px/700 分区色（§V：徽标+6px+名+6px+角标） */
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;                  /* 字重 700 + letter-spacing（design §J 沿用） */
+  letter-spacing: 0.3px;
+  color: var(--zone);
+  white-space: nowrap;
+}
+/* 精简模式（默认，§V）：分区名移出文档流，徽标与角标相邻；hover 文字见 .zone-title-float */
+.app.titles-compact .zone-title { display: none; }
+.app:not(.titles-compact) .zone-title { animation: zone-title-in 150ms ease-out; } /* 切完整：fade+位移入场，无 delay（§V） */
+@keyframes zone-title-in {
+  from { opacity: 0; transform: translateX(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+.zone-count-wrap {                /* 角标锚点：hover 浮字 left 基准 = 角标右缘 +8px（§V） */
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+.zone-title-float {               /* 精简模式 hover 临时文字（§V）：absolute 零布局抖动，复用 §C 动效参数 */
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 150ms ease-out, transform 150ms ease-out;  /* 消失 delay 0ms */
+}
+.app.titles-compact .zone-head:hover .zone-title-float {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+  transition-delay: 120ms;        /* 浮现 delay 120ms 防掠过误触（§V） */
+}
+.zone-badge {
+  flex: none;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 12px;
+  background: var(--zone);
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+}
+
+.note-list {
+  padding: 0 12px;        /* v1.8 F23（§AB）：原 padding-bottom 8px 计入 .zone-foot 的 36px 内 */
+  display: flex;
+  flex-direction: column;
+  gap: 4px;                                   /* 条间距 4px */
+  cursor: text;                               /* F16/F16 热区分界（§V）：标题行以下空白区 text */
+}
+
+/* ---------- v1.8 F23 分区底部常驻空白区（design §AB） ----------
+   每分区 .note-list 之后常驻一块 36px 空白（--zone-foot-min），随分区内容滚动、
+   不悬浮不固定；整体为 F3 双击热区 + F17 悬停 ⌘V 分区热区；
+   8px 顶部呼吸替换 .note-list 旧 padding-bottom（计入 36px 内，§AB）。 */
+.zone-foot {
+  position: relative;
+  min-height: var(--zone-foot-min);
+  padding: 8px 12px 0;
+  display: flex;
+  align-items: center;
+  cursor: text;                 /* §V 空白热区规则，与标题行 cursor:default 划界 */
+  border-radius: 8px;           /* hover 底色圆角：热区暗示，非结构性边框（§AB） */
+  transition: background 150ms ease-out;
+}
+.zone-foot:hover { background: var(--hover); }  /* 整区 hover 底色 token（§AB） */
+/* hover 微文案（§AB 决策点 36 选「悬停微提示」）：水平居中、pointer-events 不截双击；
+   时序复用 §V hover 浮字（浮现 delay 120ms / 消失 0ms、150ms ease-out）。
+   引导去重：零笔记分区不显示（F7 空态已引导，防双提示）——:has(.note) 限定。 */
+/* F27（v1.9）：零笔记分区不渲染底部空白区——:not(:has(.note)) 隐藏；有 .inline-wrap 时仍显示作挂载位 */
+.zone:not(:has(.note)) .zone-foot:not(:has(.inline-wrap)) { display: none; }
+
+/* F28（v1.9）：微文案绝对居中。原 margin:0 auto 改为绝对定位 + flex 居中，
+   文字行盒垂直中心 = 36px 槽中心，上下留白完全对称（36px 槽内垂直居中，偏差 ≤1px） */
+.zone-foot-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted-strong);   /* §G 对比达标 token，无 italic 无划线 */
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+.zone:has(.note) .zone-foot:hover .zone-foot-hint {
+  opacity: 1;
+  transition-delay: 120ms;         /* 浮现 delay 120ms 防掠过误触 */
+}
+/* F24 §AC：输入条打开期间占据空白区槽位（空白区即预留槽），微文案让位 */
+.zone-foot:has(.inline-wrap) .zone-foot-hint { display: none; }
+.zone-foot:has(.inline-wrap) { padding: 2px 12px 2px; }  /* §AC：32px 输入条于 36px 槽内垂直居中（上下各 2px），上方笔记零位移 */
+
+/* ---------- 空态 ---------- */
+/* 空态（design §J）：文案去 italic、色升 text-muted-strong 保对比；手绘感由渐变马克笔划线承担 */
+.empty {
+  min-height: 36px;
+  padding: 4px 0 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted-strong);
+  text-align: center;
+}
+.empty-scribble {
+  display: block;
+  width: 64px;
+  height: 8px;
+}
+.empty-scribble path { stroke: url(#gradMarkLight); }
+@media (prefers-color-scheme: dark) {
+  .empty-scribble path { stroke: url(#gradMarkDark); }
+}
+
+/* ---------- 笔记条 ---------- */
+.note {
+  position: relative;
+  flex: none;
+  height: 36px;
+  border-radius: 12px 8px 8px 12px;            /* 圆角 12px 仅左侧两角（design §H） */
+  background: var(--bg-card);
+  border-left: 4px solid var(--zone);           /* 左 4px 实色边 = 分区色（保留纯色，不渐变化） */
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  overflow: hidden;
+  /* hover 反馈 180ms；三态 opacity/色条过渡 200ms（design §H/§I） */
+  transition: background 180ms ease-out, box-shadow 180ms ease-out,
+              transform 180ms ease-out, opacity 200ms ease-out,
+              border-left-color 200ms ease-out;
+}
+/* hover 整条反馈（design §I）：底色 hover + 阴影 + 抬升 1px */
+.note:hover {
+  background: var(--hover);
+  box-shadow: var(--hover-shadow);
+  transform: translateY(-1px);
+}
+
+/* ---------- v1.9 F25 长按拖拽排序（design §AE） ---------- */
+/* 拖拽就绪态：长按 500ms 且位移 ≤4px，原条原地抬升 */
+.note.drag-ready {
+  transform: scale(1.03);
+  box-shadow: var(--drag-shadow);
+  opacity: 0.92;
+  cursor: grabbing;
+  z-index: 10;
+}
+
+/* 拖拽期间抑制其他笔记条的 hover 反馈（防视觉干扰与误触） */
+body.dragging .note:hover {
+  background: var(--bg-card);
+  box-shadow: none;
+  transform: none;
+}
+
+/* 拖拽期间隐藏操作组（防误点操作按钮） */
+body.dragging .note-actions {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* 拖拽期间隐藏全部呼吸点（design §AE：同 §I hover 隐藏处理；
+   .dragging 在就绪态挂载、松手/取消后移除 → 呼吸点同步恢复） */
+body.dragging .note-dot { visibility: hidden; }
+
+/* 跟手幽灵条：fixed 定位随指针移动，不占布局 */
+.drag-ghost {
+  position: fixed;
+  z-index: 100;
+  transform: scale(1.03);   /* §AE 跟手条与就绪条同 scale（回弹时 1.03→1） */
+  width: 336px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  background: var(--bg-card);
+  border-radius: 10px;
+  box-shadow: var(--drag-shadow);
+  opacity: 0.85;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+/* §AE 取消回弹：跟手条自当前位置插值位移回原槽位（180ms ease-out），
+   scale 1.03→1、opacity 0.85→1 同步复原；reduced-motion 路径由 JS 0ms 瞬时复位 */
+.drag-ghost.drag-return {
+  transition: left 180ms ease-out, top 180ms ease-out,
+              transform 180ms ease-out, opacity 180ms ease-out;
+}
+
+/* 落点指示：目标行上/下缘蓝色高亮线 */
+.note.drop-above { box-shadow: inset 0 3px 0 0 var(--focus); }
+.note.drop-below { box-shadow: inset 0 -3px 0 0 var(--focus); }
+
+.note-text {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 常态呼吸点（design §I）：6×6 渐变点，行内右缘 8px，可操作性的常态线索 */
+.note-dot {
+  position: absolute;
+  right: 13px; /* 与 16px 状态标记槽同轴：槽心 right 16px，点宽 6 → 13 */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--grad-brand);
+  pointer-events: none;
+  animation: dot-breathe 3s ease-in-out infinite alternate;
+}
+@keyframes dot-breathe {
+  from { opacity: 0.4; }
+  to   { opacity: 0.75; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .note-dot { animation: none; opacity: 0.55; }  /* 静止于 0.55（design §I） */
+}
+/* hover 时行尾让位给操作组（呼吸点隐藏、状态标记隐藏防重叠） */
+.note:hover .note-dot,
+.note:hover .note-flag { visibility: hidden; }
+/* 行尾常驻状态标记（design §H）：完成=渐变✓徽标；不干了=灰描边✕ */
+.note-flag {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;   /* 统一 16×16 锚点槽，三种标记同轴对齐 */
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.note-flag-done {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  background: var(--grad-brand);
+}
+.note-flag-drop { color: var(--text-secondary); }
+/* ---------- F12 三态（design §H） ---------- */
+.note[data-status="done"] {
+background: var(--bg-card-done);
+border-left-color: color-mix(in srgb, var(--zone) 40%, transparent); /* v1.8a：完成保留分区色淡残影（正向事保留暖调归属感） */
+}
+.note[data-status="done"] .note-text {
+  color: var(--text-secondary);                /* 完成态置灰 #8E8E93/#98989F */
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+.note[data-status="dropped"] {
+opacity: 0.55;                               /* 整条褪色，与完成态可区分 */
+border-left-color: var(--bar-dropped);       /* v1.8a：放弃=固定灰，彻底退役 */
+}
+.note[data-status="dropped"] .note-text {
+  color: var(--dropped-text);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+.note-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding-right: 5px;
+  padding-left: 16px;
+  gap: 2px;                                    /* 按钮间距 2px（design §I） */
+  /* 操作组背景渐变遮罩，保证文字可读 */
+  background: linear-gradient(90deg, rgba(0,0,0,0), var(--bg-card) 16px);
+  opacity: 0;
+  transition: opacity 120ms ease-out;          /* hover 淡入 120ms（design §I） */
+}
+.note:hover .note-actions { opacity: 1; }
+.nact {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: color 120ms ease, background 120ms ease;
+}
+.nact:hover { color: var(--text-primary); background: var(--hover); }
+.nact.st:hover { color: var(--pink); }         /* 状态按钮（✓/⊘/↺）hover 图标色=渐变单端色（design §I） */
+.nact svg { display: block; }
+
+/* ---------- 备注条操作按钮 tooltip（自绘快出版） ----------
+   原生 title 在 macOS 上延迟约 1.5s 且不可调，改为自绘单例气泡：
+   body 级 fixed 定位（不受 .note overflow:hidden 裁剪），悬停 80ms 即出 */
+.nact-tip {
+  position: fixed;
+  z-index: 60;                   /* 高于顶栏(30)/日历卡(20)/优先级 popover */
+  background: #1D1D1FF2;         /* 同顶栏 .pin-tip 气泡规格（§C） */
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: #F5F5F7;
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+  padding: 5px 10px;
+  border-radius: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-50%) translateY(4px);
+  transition: opacity 100ms ease-out, transform 100ms ease-out;
+}
+.nact-tip.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ---------- F2/F3/F17 统一新建入场 + paste-flash 高亮（design §W，300ms ease-out） ---------- */
+.note-enter { animation: note-in 300ms ease-out; }
+@keyframes note-in {
+  0%   { opacity: 0; transform: translateY(8px); background: var(--paste-flash); } /* 高亮渐隐 */
+  100% { opacity: 1; transform: none; background: var(--bg-card); }
+}
+
+/* ---------- 原地编辑输入框（笔记条变输入框，总高 36px；基础样式走 .grad-wrap input） ---------- */
+.note .grad-wrap { flex: 1; min-width: 0; }
+.edit-input { height: 33px; }  /* wrapper 1.5px×2 + 33 = 笔记条 36px */
+
+/* ---------- 就地输入（F24 v1.8 位置下沉：嵌入 F23 空白区槽位；高 32px，
+   入场 180ms fade + 4px 位移（§AC，沿 §4 原参数）；样式沿用 §4+§K 渐变描边） ---------- */
+.inline-wrap {
+  padding: 0 12px 4px;
+  animation: inline-in 180ms ease-out;
+}
+@keyframes inline-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* F24 §AC：输入条在 zone-foot 槽内时水平缩进由 foot padding 承担，撑满 336px 槽宽 */
+.zone-foot .inline-wrap { flex: 1; min-width: 0; padding: 0; }
+/* Esc/blur 取消退场：opacity 1→0 + translateY(0→4px) 120ms ease-in（§AC）；
+   Enter 写入路径直接移除、无退场过渡（§AC） */
+.inline-wrap.inline-out { animation: inline-out 120ms ease-in forwards; }
+@keyframes inline-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(4px); }
+}
+/* 就地输入（总高 32px；基础样式走 .grad-wrap input） */
+.inline-wrap .grad-wrap { width: 100%; }
+.inline-input { height: 29px; }  /* wrapper 1.5px×2 + 29 = 32px */
+
+/* ---------- 优先级 popover 菜单（120×152） ---------- */
+.popover {
+  position: fixed;
+  z-index: 100;
+  width: 152px;
+  height: 152px;
+  border-radius: 10px;
+  background: var(--popover-bg);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid var(--stroke);
+  padding: 12px 0;
+  animation: pop-in 120ms ease-out;
+}
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.pop-row {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.pop-row:hover { background: var(--hover); }
+.pop-chip {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+.pop-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pop-check {
+  flex: none;
+  color: var(--row-zone);
+  display: flex;
+}
+
+/* ---------- 删除撤销 toast（F21 上移：底部模块上边线上方居中，高 36px，存活 4s） ----------
+   design §AA：toast 底边 = bottombar 上边线 − 8px（bottom: calc(48px + var(--space-toast-gap))），
+   自上滑入（translateY(-8px→0)，防越线遮挡渐变描边/输入框）；聚焦发光上沿最高
+   仅到上边线上方 3px，与 toast 底边净空 5px 不相交；z-index 40 高于日历卡 20 与顶栏 30。 */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(48px + var(--space-toast-gap));   /* bottombar 48px + 间距 8px（§AA） */
+  z-index: 40;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--bg-card);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid var(--stroke);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-primary);
+  opacity: 0;
+  transform: translate(-50%, -8px);   /* 退场/初始：上方 8px（§AA 自上滑入） */
+  pointer-events: none;
+  transition: opacity 180ms ease-out, transform 180ms ease-out;
+}
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+.undo-btn {
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--focus);
+  cursor: pointer;
+  padding: 2px 2px;
+}
+
+/* ---------- 收起态：迷你胶囊（整块 drag，点击展开） ---------- */
+.capsule {
+  display: none;
+}
+.app.collapsed .capsule {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+  background: var(--bg-panel);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(24px) saturate(1.4);
+  padding: 0 12px;
+  -webkit-app-region: drag;
+  cursor: pointer;
+}
+.capsule-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.capsule-badge {
+  flex: none;
+  min-width: 17px;
+  height: 17px;
+  border-radius: 10px;
+  background: var(--p3);
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  margin-left: 2px;
+}
+.capsule .icon-btn {
+  width: 22px;
+  height: 22px;
+  margin-left: 2px;
+  -webkit-app-region: no-drag; /* drag 区域会吞点击，展开按钮必须 no-drag */
+}
+
+/* ============================================================
+   v1.4 F15 日历回顾（design §L-§P）
+   ============================================================ */
+
+/* ---------- 顶栏日历图标按钮（§L：图钉左侧，右组顺序 日历→图钉→收起） ---------- */
+.cal-btn {
+  position: relative;   /* tooltip 锚点，同图钉 */
+  margin-right: -4px;   /* 与图钉间距 4px（顶栏基础 gap 8px，同 §D 手法） */
+}
+.cal-btn svg path {            /* 线稿重量与图钉 §A 完全一致 */
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.cal-btn.active {              /* 激活态（覆盖层打开期间）：图标粉 + 常驻淡色底（§L） */
+  color: var(--pink);
+  background: var(--cal-active-bg);
+}
+.cal-btn.active:hover {        /* 覆写 .icon-btn:hover 的 text-primary */
+  color: var(--pink);
+  background: var(--cal-active-bg-hover);
+}
+.cal-btn:focus-visible {
+  outline: 2px solid var(--pink);
+  outline-offset: 2px;
+}
+/* tooltip「回看日历记录」完全复用 §C 规格（.pin-tip 基础样式 + 按钮悬停浮现） */
+.cal-btn:hover .pin-tip,
+.cal-btn:focus-visible .pin-tip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  transition-delay: 150ms;     /* 浮现 delay 150ms 防掠过误触（§C） */
+}
+
+/* ============================================================
+   v1.7 增补（design §X/§Z）：F18 顶栏关闭按钮 + F20 收起按钮自绘 tooltip
+   ============================================================ */
+
+/* ---------- F20 顶栏收起按钮（§Z）：移除原生 title，复用 .pin-tip 全套规格 ----------
+   :hover 与 :focus-visible 并列同 delay（150ms），满足 AC4 键盘可达；
+   气泡 absolute 伸入 P0 区域上方，脱离文档流零布局抖动、不遮挡右组其他热区。 */
+.collapse-btn {
+  position: relative;   /* tooltip 绝对定位锚点（同 .pin-btn/.cal-btn 手法） */
+  margin-right: -4px;   /* 与右侧关闭按钮间距 4px（§X 右组 28×4+4×3=124px） */
+}
+.collapse-btn:hover .pin-tip,
+.collapse-btn:focus-visible .pin-tip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  transition-delay: 150ms;     /* 浮现 delay 150ms（§C/§Z） */
+}
+
+/* ---------- F18 顶栏关闭按钮（§X）：✕ 线稿，顶栏右区最右 ----------
+   hover 不变红（§X 决策：退出=自动落盘安全操作，非破坏性行为），
+   沿用 .icon-btn 默认 hover（text-primary + token hover 底）；
+   与收起按钮（chevron.down）形态正交，语义区分由 tooltip「退出应用」承担。 */
+.close-btn {
+  position: relative;   /* tooltip 锚点（同 .pin-btn/.cal-btn） */
+}
+.close-btn svg path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;            /* 线宽与图钉 §A/日历 §L 完全一致（§X） */
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.close-btn:focus-visible {
+  outline: 2px solid var(--pink);   /* 同 §L（深色 #FB7AA5）offset 2px */
+  outline-offset: 2px;
+}
+.close-btn:hover .pin-tip,
+.close-btn:focus-visible .pin-tip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  transition-delay: 150ms;     /* 浮现 delay 150ms（§C） */
+}
+
+/* ---------- 下拉卡片（§Q，v1.5 形态迁移） ----------
+   实现方式说明（PRD 决策点 21/23）：卡片为绝对定位锚定元素，宽 288px、
+   顶边贴顶栏日历按钮下方（top 56 = 48+8）、右缘与顶栏右缘 12px 内缩对齐；
+   无全屏遮罩、不锁底层——看板 hover/滚动照常；
+   顶栏 z-index 30 恒在其上，置顶/收起/日历图标不受影响。
+   点外关闭由 document 级 pointerdown 捕获阶段实现（§T，见 JS）。 */
+.cal-card {
+  position: absolute;
+  top: 48px;                     /* 贴齐顶栏底缘 48px = P0 分区上边线（§Q 调整：原 56px 含 8px 间距，反馈上移） */
+  right: 12px;                   /* 右缘对齐顶栏右缘 12px 内缩（§Q） */
+  z-index: 20;
+  width: 288px;                  /* 宽 288px（§Q） */
+  max-height: 460px;             /* 6 行月 worst case 上限（§Q） */
+  border-radius: 12px;
+  padding: 8px 12px 8px;         /* 内边距 8/12/8（§Q） */
+  background: var(--cal-card-bg);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--cal-shadow);
+  display: flex;
+  flex-direction: column;
+  transform-origin: 100% 0;     /* 自锚点右上生长（§Q） */
+  animation: cal-in 160ms ease-out;   /* 进场（§Q） */
+}
+.cal-card.closing { animation: cal-out 120ms ease-in forwards; } /* 退场反向（§Q） */
+@keyframes cal-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes cal-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateY(-6px) scale(0.98); }
+}
+/* 卡片内 ✕ 关闭钮（§T）：head 行内 absolute right:8px、22×22、垂直居中；
+   z-index:5 沿用 P1 修复手法压过 .cal-head 同层内容，防热区被吞 */
+.cal-close {
+  position: absolute;
+  top: 2px;                     /* head 高 26 − 钮 22 → 垂直居中 */
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  z-index: 5;
+}
+
+/* ---------- 月历头部（§Q：行 26px，箭头+年月标题整组水平居中） ---------- */
+.cal-head {
+  position: relative;
+  flex: none;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.cal-title {                    /* 年月标题 13px/700（§R），120ms fade 同步翻月 */
+  flex: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  transition: opacity 120ms ease-out;
+}
+.cal-nav {                      /* 翻月箭头 22×22（§N，同收起按钮规格） */
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+}
+.cal-nav:hover { background: var(--hover); color: var(--text-primary); }
+.cal-nav:active { transform: scale(0.92); }
+.cal-nav svg { display: block; }
+
+/* ---------- 星期表头 + 日期网格（§N 值迁移 §R） ---------- */
+.cal-week {
+  flex: none;
+  height: 18px;                 /* 22→18（§R） */
+  margin-top: 4px;
+  display: grid;
+  grid-template-columns: repeat(7, 34px);
+  gap: 2px;                     /* 4→2（§R） */
+  justify-content: center;      /* 7×34+6×2=250，卡片内宽 264 内居中 */
+}
+.cal-week span {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary); /* 非正文用色（§G 允许） */
+  line-height: 18px;
+}
+.cal-grid {
+  flex: none;
+  margin-top: 2px;
+  display: grid;
+  grid-template-columns: repeat(7, 34px);
+  column-gap: 2px;
+  row-gap: 2px;
+  justify-content: center;
+  /* 翻月过渡（§N）；格 34px 固定不压缩（§R，§O 压缩策略已废弃） */
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
+}
+
+.cal-day {
+  position: relative;
+  width: 34px;                   /* 42→34（§R） */
+  height: 34px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-family: inherit;
+  border-radius: 8px;           /* 可点日 hover 圆角 10→8（§R） */
+  cursor: pointer;
+  transition: background 120ms ease-out;
+}
+.cal-day:not(:disabled):not(.selected):hover { background: var(--hover); } /* 未选中可点日（§N） */
+.cal-day:disabled { cursor: default; }   /* 未来日期：点击无响应（§N） */
+.cal-num {
+  position: absolute;
+  top: 4px;                     /* 数字置于格内上部 5→4（§R） */
+  left: 0;
+  right: 0;
+  z-index: 1;                   /* 盖过选中实底圆 */
+  text-align: center;
+  font-size: 12px;              /* 13→12（§R） */
+  font-weight: 400;
+  color: var(--text-primary);
+}
+.cal-day.today .cal-num { font-weight: 600; }
+.cal-day.future .cal-num { color: var(--cal-future); }  /* 未来日期置灰（§N） */
+
+/* 今天：22×22 渐变描边环（§R：26→22，不填底则记录点仍可见、不与选中态混淆） */
+.cal-day.today::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--grad-brand);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+}
+
+/* 选中日：24×24 实色底白字（§R：28→24，单端实色非渐变，规避 §G 渐变小字禁令） */
+.cal-day.selected::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--pink);
+}
+.cal-day.selected .cal-num {
+  color: #FFFFFF;
+  font-size: 12px;              /* 12px/700（§R） */
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);  /* 单字符高字重例外（§N） */
+}
+.cal-day.selected .cal-dot { background: #FFFFFFE6; } /* 记录点改白（§N） */
+.cal-day.selected.today::before { display: none; }   /* 选中态优先，不叠今天环 */
+
+/* 记录点（§N/§R）：4×4，数字下方居中、间距 2px，同日多事件仍是一个点（PRD 硬约束） */
+.cal-dot {
+  position: absolute;
+  bottom: 7px;                  /* 数字底缘 +2px（34px 格内，§R） */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;                   /* 盖过选中实底圆（::after 树序在后会遮点） */
+  width: 4px;                   /* 5→4（§R） */
+  height: 4px;
+  border-radius: 50%;
+  background: var(--grad-brand);
+  pointer-events: none;
+  animation: cal-dot-pop 120ms ease-out both;   /* 进场完成后逐个弹出（§P） */
+}
+@keyframes cal-dot-pop {
+  from { transform: translateX(-50%) scale(0); }
+  to   { transform: translateX(-50%) scale(1); }
+}
+
+/* 只画当月：前置空槽占位（无跨月补位格，§N；34×34 §R） */
+.cal-pad {
+  width: 34px;
+  height: 34px;
+}
+
+/* ---------- 日期详情区（§S：常驻网格下方，独立滚动） ---------- */
+.cal-detail {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 174px;            /* §Q 高度预算：6 行月下详情可视 174px */
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin-top: 6px;
+}
+.cal-detail::-webkit-scrollbar { width: 8px; }                /* §S 滚动条宽 8 */
+.cal-detail::-webkit-scrollbar-thumb { background: var(--cal-scroll); border-radius: 4px; }
+.cal-detail::-webkit-scrollbar-thumb:hover { background: var(--cal-scroll-hover); }
+.cal-detail-inner { animation: cal-fade 120ms ease-out; } /* 换日期仅内容 fade（§O） */
+@keyframes cal-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+/* 默认提示（§P：覆盖层刚打开即此态）/ 空态日期（§O） */
+.cal-hint, .cal-empty-day {
+  padding: 18px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted-strong);
+  text-align: center;
+}
+.cal-empty-day .empty-scribble { opacity: 0.5; }  /* §O：划线 opacity 0.5 */
+
+/* 三组：新建 → 完成 → 放弃（§O） */
+.cal-group + .cal-group { margin-top: 8px; }
+.cal-gh {
+  height: 22px;                 /* 24→22（§R） */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cal-gh-ic { flex: none; display: flex; }
+.cal-gh-ic svg { display: block; }
+.cal-gh-name { font-size: 12px; font-weight: 700; color: var(--text-primary); }
+.cal-gh-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted-strong);
+}
+.cal-items { display: flex; flex-direction: column; gap: 4px; }
+/* 条目（笔记条降级版，§O）：高 28 圆角 8 bg-card + 左 4px 当前分区色条 */
+.cal-item {
+  height: 26px;                 /* 28→26（§R） */
+  border-radius: 8px;
+  background: var(--bg-card);
+  border-left: 4px solid var(--zone);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+.cal-item-text {
+  font-size: 12px;              /* 13→12（§R） */
+  font-weight: 400;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 完成/放弃组条目：line-through 1.5px + §H 置灰/褪色 token（§O） */
+.cal-item.st-done .cal-item-text {
+  color: var(--text-secondary);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+.cal-item.st-dropped { opacity: 0.55; }
+.cal-item.st-dropped .cal-item-text {
+  color: var(--dropped-text);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+/* prefers-reduced-motion：以上动效全部瞬时呈现 0ms（§P/§V/§W） */
+@media (prefers-reduced-motion: reduce) {
+  .cal-card, .cal-card.closing { animation: none; }
+  .cal-grid, .cal-day, .cal-num, .cal-dot, .cal-title, .cal-detail-inner {
+    transition: none !important;
+    animation: none !important;
+  }
+  .note-enter, .zone-title, .inline-wrap { animation: none !important; }
+  .zone, .zone::after, .zone-title-float, .zone-foot, .zone-foot-hint { transition: none !important; }
+  .toast { transition: none !important; }   /* F21：减弱动效时 toast 瞬时呈现（§AA） */
+  .drag-ghost { transition: none !important; }   /* F25：减弱动效时回弹 0ms 瞬时复位（§AE） */
+}

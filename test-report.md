@@ -520,3 +520,54 @@
 ### 本轮总结论
 
 **通过**。F25 越界取消（AC3/AC4）双路径实测达标：跨组/跨分区松手均无 seq 写入、无重排、播放 §AE 回弹动画（.drag-return 180ms，期间 .dragging 保持、呼吸点隐藏，到位后全部恢复）；正控制面证实组内首行前/末行后合法落位未被边界判定误伤；F26/F24/F27 回归零破坏；双自测 harness 68/68、v16 101/101（含 G6 新增 12 条越界断言）与实测一致。前端上报 3 项偏离全部裁定接受、不立缺陷。
+
+## 拆分重构回归轮（2026-10-12）· v2.0 单文件拆分（零行为变更）验收
+
+测试方式：双自测复跑 + 拆分等价性独立复核（从 git HEAD 单文件版提取内联段逐字节比对）+ catdesk browser-action file:// 实测（380×640）+ 协议回落安全用例模拟 + electron-builder --mac dir 打包/asar 解包 + 打包 .app 实机 CDP 探测与内置冒烟。测试数据已清（reload 后 notes=0、storage=null），浏览器标签已关闭，全部测试实例按精确 PID 清理（用户 /Applications 正在运行的 Mark it! PID 16403 全程未触碰）。
+
+### 拆分等价性（核心：前后完全等价）
+
+| 项 | 结论 | 证据 |
+|---|---|---|
+| CSS 逐字节一致 | 通过 | 独立复核：`git show HEAD:index.html` 提取内联 `<style>` vs `assets/css/app.css`，全等比较 === true |
+| JS 逐字节一致 | 通过 | 同法提取内联 `<script>` vs `assets/js/app.js`，=== true |
+| HTML 骨架等价 | 通过 | 仅 `<style>`→`<link>`、内联 `<script>`→`<script defer src>`，其余逐行全等（骨架归一比较 === true） |
+| 自测 harness | 通过 | `node .selftest/harness.js` → 68 passed 0 failed（复跑） |
+| 自测 v16 | 通过 | `node .selftest/v16.js` → 101 passed 0 failed（复跑）；「断言零改动」核实：两文件 diff 仅加载器段（harness 16 行 / v16 13 行），断言区零改动 |
+| 改动面收敛 | 通过 | git diff：main.js 仅 L84-97 回落块 +11 行；package.json 仅 +`assets/**`；index.html 仅资源外链化 |
+
+### 浏览器实测（file:// 直开 index.html，截图均在 /Users/tangchauyi/.agent-browser/tmp/screenshots/）
+
+| 路径 | 结论 | 证据 |
+|---|---|---|
+| 外部 CSS 生效 | 通过 | styleSheets[0]=assets/css/app.css、cssRules=191、--p0=#FF3B30 解析；resource timing 探针无 404 |
+| 外部 JS 生效 | 通过 | document.scripts=[assets/js/app.js]；渲染循环已执行（.zone=4、胶囊计数联动、storage 读取） |
+| 四分区渲染 | 通过 | 4 zones、P0-P3 标题/角标/双击热区齐全；截图 screenshot-1791626321033.png |
+| 新建·底部输入条 | 通过 | 输入+Enter → 落 P3 默认区、角标/胶囊=1、localStorage 落盘 |
+| 新建·双击空白区 | 通过 | dblclick P0 zone-foot → inline input=1；Enter 保存 → badge=1、输入条移除 |
+| 双击编辑 | 通过 | 预填原文「QA双击B」→ 改「…改」→ Enter 落盘、edit-input 清除 |
+| 完成/放弃切换 | 通过 | open→done（flag 挂载、按钮变 undo）→undo 恢复 open→drop（note-flag-drop） |
+| 日历开关 | 通过 | calBtn → .cal-card=1、aria-expanded=true、31 天格+today 标记（截图 screenshot-1791626445495.png）；再点关闭 expanded=false |
+| 深浅色切换 | 通过 | emulatemedia dark → 暗色 token 生效（--text-primary=#F5F5F7、--bg-panel=#1E1E24EE）；系统级切换、无应用内按钮（与既有基线一致）；截图 screenshot-1791626452315.png |
+| 长按拖拽排序 | 通过 | pointerdown→真等 700ms→move→up：body.dragging+ghost=1（截图 screenshot-1791626490202.png）→ 序 X/Y/Z 变 Y/Z/X、seq 1..3 重编、storage 持久化、reload 后保持 |
+
+### main.js 协议回落安全检查（L84-97）
+
+**通过**。用例模拟 7 组：`/assets/../../main.js`、`/../../../../etc/hosts.js`、`/%2e%2e/%2e%2e/tmp/evil.js`（URL 解码后穿越）、`/assets/css/app.css%00.html` 均被拒（归一化后越出 __dirname 或扩展名不在白名单 → 404）；合法 assets css/js 正常 SERVE；白名单仅 .css/.js。**P2 偏差**：白名单作用域为整个 __dirname 而非仅 assets/ 子树——模拟 `/node_modules/electron/index.js` → SERVE，与注释「原为 404 的仅 assets 路径」不符；实际风险极低（renderer contextIsolation+sandbox、打包 asar 内只含白名单文件），建议下轮收紧为 rel 须以 `assets/` 开头（一行改动）。
+
+### 打包验证
+
+**通过**。`npx electron-builder --mac dir` 构建成功；`asar list` 确认 /assets/css/app.css、/assets/js/app.js、/index.html、/main.js、/preload.js、/package.json 在包内且无多余文件。**打包 .app 实机 CDP 探测**（隔离 user-data-dir，避开用户运行中实例的单例锁）：markit://app/index.html 下 styleSheets[0]=markit://app/assets/css/app.css（191 规则解析成功）、scripts 含 markit://app/assets/js/app.js、__MARKIT_NOTES__ 注入正常——协议回落从 asar 内读文件路径成立。**打包冒烟**：MARKIT_SMOKE=1 实跑 → SMOKE DONE ALL PASS（注入/persist 落盘/收起 128×40/展开 360×640）。
+
+### 前端上报坑裁定
+
+1. **.selftest/app.js 历史快照——建议删除**。证据：全仓 grep 零引用；内容为 548 行早期 app JS 快照，与现行 1475 行 assets/js/app.js 已无对应关系，且已随 c0098ec 进入 git 历史，工作区保留只徒增混淆。
+2. **defer 时序风险——裁定无风险，不立缺陷**。script 位于 body 末尾，defer 语义（解析完成后按序执行、先于 DOMContentLoaded）保证全部 DOM 就绪；Electron 注入的 __MARKIT_NOTES__ 位于 body 首部、必然先于 defer 脚本执行；实测四条链路（渲染/新建/编辑/拖拽）全过。
+
+### 缺陷清单
+
+**P0：无。P1：无。P2：2 条**——① 协议回落白名单作用域偏宽（见上，一行修复建议）；② 部署提醒：用户已安装的 /Applications/Mark it!.app 仍为拆分前 17:44 构建，新 dmg 未安装（非本轮代码缺陷）。
+
+### 本轮总结论
+
+**通过**。零行为变更目标达成：源三段（HTML 骨架/CSS/JS）逐字节等价独立复核成立，双自测 68/101 复跑全绿且断言零改动，浏览器核心路径 10 项实测全过（外部资源生效、无 404），协议回落防逃逸成立（含 P2 宽域偏差），打包产物 assets 齐全且打包实机 markit:// 下 CSS/JS 正常加载、内置冒烟全过。
