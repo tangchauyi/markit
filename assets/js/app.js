@@ -78,6 +78,12 @@ var toastTimer = null;
    DOM 引用
    ============================================================ */
 var app = document.getElementById('app');
+/* 跨平台修饰键（v2.1）：Windows 用 Ctrl+V，Mac 用 ⌘V；body 挂 .win 供 CSS 文案切换 */
+var IS_WIN = /win/i.test((typeof navigator !== 'undefined' && navigator.platform) ||
+  (typeof navigator !== 'undefined' && navigator.userAgent) || '');
+if (IS_WIN && document.body && document.body.classList && document.body.classList.add) {
+  document.body.classList.add('win');
+}
 var quickInput = document.getElementById('quickInput');
 var collapseBtn = document.getElementById('collapseBtn');
 var expandBtn = document.getElementById('expandBtn'); // 胶囊内的展开按钮（no-drag，真机可点击）
@@ -1590,13 +1596,16 @@ if (typeof window.addEventListener === 'function') {      // 宿主缺 window �
   window.addEventListener('focus', refreshPasteReady);   // 回前台重估
 }
 
-/* ⌘V 拦截（Mac）：条件齐备时武装 F17 通道，不 preventDefault——借系统
+/* ⌘V/Ctrl+V 拦截：条件齐备时武装 F17 通道，不 preventDefault——借系统
    paste 事件同步取剪贴板文本（免 clipboard-read 权限，QA file:// 环境可用）；
    120ms 内未送达（个别环境无焦可编辑目标不派发 paste）则退回
    navigator.clipboard.readText 兜底（无权限/非文本 → catch 静默不创建） */
 document.addEventListener('keydown', function (e) {
   if (e.key !== 'v' && e.key !== 'V') return;
-  if (!e.metaKey || e.ctrlKey || e.altKey) return;   // 仅 Mac ⌘V（Ctrl+V / ⌥⌘V 不劫持）
+  /* Mac 仅 ⌘V（Ctrl+V / ⌥⌘V 不劫持）；Windows 仅 Ctrl+V（Win+V 等不劫持） */
+  var modOk = IS_WIN ? (e.ctrlKey && !e.metaKey && !e.altKey)
+                     : (e.metaKey && !e.ctrlKey && !e.altKey);
+  if (!modOk) return;
   if (!pasteConditionsOk()) { pasteArmed = false; return; }
   pasteArmed = true;
   pasteHandled = false;
