@@ -46,6 +46,9 @@
   /* ---------- v1.8 增补 token（design §AB，深浅色同值） ---------- */
   --zone-foot-min: 36px;      /* 分区底部常驻空白区最小高度（F23，PRD 下限：与笔记条高 36px 同值，模块节奏一致） */
   --drag-shadow: 0 8px 24px rgba(0, 0, 0, 0.20);  /* v1.9 F25 长按拖拽：就绪态抬升阴影（深色 0.45） */
+  /* ---------- v2.1 增补 token：操作组实底（近似合成笔记条底色，深浅色各一套） ---------- */
+  --actions-bg: #FBFBFD;        /* 常态笔记条上操作组右端实底 */
+  --actions-bg-hover: #F3F3F6;  /* hover 态笔记条上操作组右端实底 */
 }
 
 /* ---------- 设计 token（深色） ---------- */
@@ -87,6 +90,8 @@
     --paste-flash: #FB7AA526;
     /* ---------- v1.9 增补 token（design §AE，F25 长按拖拽） ---------- */
     --drag-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --actions-bg: #28282F;        /* 深色合成笔记条底（bg-card 罩 bg-panel 后的近似实色） */
+    --actions-bg-hover: #34343B;  /* 深色 hover 合成底 */
   }
 }
 
@@ -313,17 +318,37 @@ body {
   padding-bottom: 0;
   position: relative;               /* F17 悬停提示锚点（§W） */
   border-bottom: 1px solid var(--stroke); /* 分区底部 1px stroke */
-  /* F17 可粘贴高亮（§W）：outline 基态常驻透明，挂载/卸载仅过渡颜色，零布局位移 */
-  outline: 1.5px dashed transparent;
-  outline-offset: -3px;
-  transition: outline-color 120ms ease-in;
+  /* F17 可粘贴高亮（§W v2.1 修订）：虚线框改由 ::before 绘制——顶边对齐上一分区
+     底部分隔线（分区间隔 8px → top:-8px；P0 上方为顶栏底线 → top:-1px），
+     底边压在本分区 border-bottom 分隔线上，左右维持 3px 内缩；
+     常态透明 + 色彩过渡，挂载/卸载零布局位移（原 outline 无法单边对齐分隔线） */
+}
+.zone::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  right: 3px;
+  bottom: -1px;
+  left: 3px;
+  border: 1.5px dashed transparent;
+  border-radius: 10px;
+  pointer-events: none;
+  transition: border-color 120ms ease-in;
 }
 .zone + .zone { margin-top: 8px; }           /* 分区间隔 8px */
+.zone:first-child::before { top: 0; }   /* P0 上方是顶栏底线：紧贴其下，避免越出滚动容器顶缘被裁切 */
 .zone.paste-ready {               /* 悬停且条件齐备（见 JS）：1.5px dashed 当前分区色（§W） */
   border-radius: 10px;
-  outline-color: var(--zone);
-  transition: outline-color 180ms ease-out;
   cursor: default;
+}
+.zone.paste-ready::before {
+  border-color: var(--zone);
+  transition: border-color 180ms ease-out;
+}
+/* F29 跨分区拖拽：目标分区虚线高亮（复用 ::before，与 paste-ready 互斥——拖拽期间 F17 提示抑制） */
+.zone.drop-zone::before {
+  border-color: var(--zone);
+  transition: border-color 120ms ease-out;
 }
 /* F17 微提示「⌘V 粘贴到这里」（§W）：absolute 定位零 reflow，进出各 150/120ms */
 .zone::after {
@@ -607,12 +632,14 @@ body.dragging .note-dot { visibility: hidden; }
 
 .note-text {
   flex: 1;
+  min-width: 0;
   font-size: 13px;
   font-weight: 400;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  padding-right: 16px;  /* v2.1：为行尾气泡点/状态标记槽（right 8~24px）预留安全区，超长文本省略号不压点 */
 }
 /* 常态呼吸点（design §I）：6×6 渐变点，行内右缘 8px，可操作性的常态线索 */
 .note-dot {
@@ -686,12 +713,16 @@ border-left-color: var(--bar-dropped);       /* v1.8a：放弃=固定灰，彻�
   padding-right: 5px;
   padding-left: 16px;
   gap: 2px;                                    /* 按钮间距 2px（design §I） */
-  /* 操作组背景渐变遮罩，保证文字可读 */
-  background: linear-gradient(90deg, rgba(0,0,0,0), var(--bg-card) 16px);
+  /* 操作组背景渐变遮罩：左侧淡出 + 右端实底（v2.1：半透明 bg-card 改为实底 token，
+     超长文本不再透出 icon 底下；hover 态换用对应 hover 实底防色差） */
+  background: linear-gradient(90deg, rgba(0,0,0,0), var(--actions-bg) 20px);
   opacity: 0;
   transition: opacity 120ms ease-out;          /* hover 淡入 120ms（design §I） */
 }
-.note:hover .note-actions { opacity: 1; }
+.note:hover .note-actions {
+  opacity: 1;
+  background: linear-gradient(90deg, rgba(0,0,0,0), var(--actions-bg-hover) 20px);
+}
 .nact {
   flex: none;
   width: 22px;
@@ -1273,7 +1304,7 @@ border-left-color: var(--bar-dropped);       /* v1.8a：放弃=固定灰，彻�
     animation: none !important;
   }
   .note-enter, .zone-title, .inline-wrap { animation: none !important; }
-  .zone, .zone::after, .zone-title-float, .zone-foot, .zone-foot-hint { transition: none !important; }
+  .zone, .zone::before, .zone::after, .zone-title-float, .zone-foot, .zone-foot-hint { transition: none !important; }
   .toast { transition: none !important; }   /* F21：减弱动效时 toast 瞬时呈现（§AA） */
   .drag-ghost { transition: none !important; }   /* F25：减弱动效时回弹 0ms 瞬时复位（§AE） */
 }

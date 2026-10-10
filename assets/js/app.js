@@ -61,6 +61,12 @@ function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
+/* IME 组合期守卫：中文/日文等输入法选字回车（composition 会话内）不触发保存。
+   isComposing 覆盖标准路径；keyCode 229 兜底部分旧内核在 keydown 时未置位的情况 */
+function isImeComposing(e) {
+  return e.isComposing === true || e.keyCode === 229;
+}
+
 /* ============================================================
    状态
    ============================================================ */
@@ -384,12 +390,19 @@ function setStatus(id, status) {
 }
 
 /* ============================================================
-   F25（v1.9）：长按拖拽排序 —— 同分区 + 同状态组内重排并持久化 seq
+   F25（v1.9）+ F29（v2.1）：拖拽排序与跨分区移动
    ============================================================
+   F25 同分区 + 同状态组内重排（seq 持久化）：
    - 长按 500ms 且位移 ≤4px → 进入拖拽就绪态（.drag-ready）
    - 移动 → 跟手幽灵条 + 落点指示（.drop-above / .drop-below）
    - 松手 → 同组内重排 + seq 重编号（1..n）+ 持久化
-   - 跨组/跨分区松手 → 取消回弹（不改 seq、不重排）
+   - 跨组/跨分区越界松手 → 取消回弹（不改 seq、不重排）
+   F29 跨分区移动（v2.1）：
+   - 拖拽中指针进入其他分区 → 该分区挂 .drop-zone（虚线高亮）+ 幽灵条左色条变色
+   - 落位跟随指针：目标分区同状态组内按指针上下取目标行（.drop-above/.drop-below），
+     带外钳位到组首前/组末后；目标组为空 → 落组末尾
+   - 松手 → moveNoteCross 移动到目标分区对应位次（movedAt 刷新、seq 重编号）
+   - 拖拽期间 F17 悬停粘贴提示抑制（视觉/语义互斥）
    - 状态变更/⇅ 移动/新建 → seq 自动清空（本条已由 setStatus/setPriority/addNote 处理）
    ============================================================ */
 var DRAG_DELAY = 500;         // 长按阈值（ms）
@@ -430,6 +443,7 @@ function stopDragTracking() {
   if (!dragState) return null;
   if (dragState.timer) { clearTimeout(dragState.timer); dragState.timer = null; }
   clearDropIndicator();
+  setDropZone(null);   // F29：拖拽结束同步卸载跨分区高亮
   var parts = { row: dragState.row, ghost: dragState.ghost, wasReady: dragState.ready };
   dragState = null;
   document.removeEventListener('pointermove', dragPointerMove);
@@ -505,17 +519,29 @@ function dragPointerUp(e) {
   var wasReady = dragState.ready;
   var dropTarget = dragState.dropTarget;
   var dragId = dragState.id;
+  var targetZone = dropZoneEl;   // F29：stopDragTracking 会清空，先捕获
 
   if (wasReady) {
     dragGuardUntil = Date.now() + 200; // 抑制紧随的 click/dblclick
     if (dropTarget) {
       cancelDragTracking();
-      reorderNote(dragId, dropTarget.targetId, dropTarget.insertAfter);
+      if (dropTarget.crossZone) {
+        // F29 跨分区松手 → 移动到目标分区指针位次（目标行上/下方）
+        moveNoteCross(dragId, dropTarget.targetId, dropTarget.insertAfter, parseInt(targetZone.dataset.p, 10));
+      } else {
+        reorderNote(dragId, dropTarget.targetId, dropTarget.insertAfter);
+      }
+    } else if (targetZone) {
+      // F29 跨分区松手（目标组为空/无同状态行）→ 兜底移动到组末尾
+      var p = parseInt(targetZone.dataset.p, 10);
+      cancelDragTracking();
+      setPriority(dragId, p);
     } else {
-      // dropTarget 为 null（原地/跨组/跨分区越界松手）→ 取消回弹：
+      // dropTarget 与目标分区均为 null（原地/越界松手）→ 取消回弹：
       // 无 seq 写入、无重排，播放 §AE 回弹动画（F25 AC3/AC4）
       playCancelBounce();
     }
+    refreshPasteReady();   // F29：拖拽结束重估 F17 悬停粘贴提示挂载
   } else {
     cancelDragTracking();
   }
@@ -527,12 +553,142 @@ function dragPointerCancel(e) {
     dragGuardUntil = Date.now() + 200;
   }
   cancelDragTracking();
+  refreshPasteReady();   // F29：拖拽中断后重估 F17 悬停粘贴提示挂载
 }
 
 function clearDropIndicator() {
   if (!dragState || !dragState.dropTarget || !dragState.dropTarget.row) return;
   dragState.dropTarget.row.classList.remove('drop-above');
   dragState.dropTarget.row.classList.remove('drop-below');
+}
+
+/* ---------- F29 跨分区移动：目标分区追踪 / 高亮 / 落点判定 ---------- */
+var dropZoneEl = null;   // 当前跨分区悬停的目标分区元素（非 null 时 dropTarget 恒为 null）
+
+function clearReorderIndicators() {   // 清组内重排落点指示并置空 dropTarget
+  if (!dragState) return;
+  if (dragState.dropTarget && dragState.dropTarget.row) {
+    dragState.dropTarget.row.classList.remove('drop-above');
+    dragState.dropTarget.row.classList.remove('drop-below');
+  }
+  dragState.dropTarget = null;
+}
+
+/* 指针 Y 所在分区（矩形带内严格判定；分区间 8px 空隙为无主区 → 拖拽取消） */
+function zoneUnderPointer(pointerY) {
+  var zones = sectionsScroll.querySelectorAll('.zone');
+  for (var i = 0; i < zones.length; i++) {
+    var r = zones[i].getBoundingClientRect();
+    if (pointerY >= r.top && pointerY <= r.bottom) return zones[i];
+  }
+  return null;
+}
+
+/* 维护跨分区目标高亮（.drop-zone 虚线框）+ 幽灵条左色条随目标分区色 */
+function setDropZone(zoneEl) {
+  if (dropZoneEl === zoneEl) return;
+  if (dropZoneEl) dropZoneEl.classList.remove('drop-zone');
+  dropZoneEl = zoneEl;
+  if (dropZoneEl) dropZoneEl.classList.add('drop-zone');
+  if (dragState && dragState.ghost) {
+    dragState.ghost.style.borderLeft = dropZoneEl
+      ? '4px solid ' + ZONE_VARS[parseInt(dropZoneEl.dataset.p, 10)]
+      : '';
+  }
+}
+
+function dragPointerMove(e) {
+  if (!dragState) return;
+  var cx = (e && e.clientX !== undefined) ? e.clientX : dragState.startX;
+  var cy = (e && e.clientY !== undefined) ? e.clientY : dragState.startY;
+
+  if (!dragState.ready) {
+    // 未就绪：检查位移是否超容差（视为滑动/点击）
+    var dx = cx - dragState.startX;
+    var dy = cy - dragState.startY;
+    if (dx * dx + dy * dy > DRAG_TOLERANCE * DRAG_TOLERANCE) {
+      cancelDragTracking();
+    }
+    return;
+  }
+
+  // F29：指针在其他分区内 → 跨分区移动模式（分区虚线高亮 + 行级落点跟随指针）
+  var zone = zoneUnderPointer(cy);
+  var dragNote = notes[findIndexById(dragState.id)];
+  if (zone && dragNote && parseInt(zone.dataset.p, 10) !== dragNote.priority) {
+    clearReorderIndicators();
+    var ct = computeCrossZoneDropTarget(dragState.id, zone, cy);
+    if (!dragState.ghost) updateDragVisual(null, cx, cy);   // 先确保幽灵条已创建
+    setDropZone(zone);                                       // 分区高亮 + 左色条 accent
+    updateDragVisual(ct, cx, cy);                            // 行级落点指示（目标行上/下方）+ 跟手
+    return;
+  }
+  setDropZone(null);
+
+  // 同分区：组内重排落点判定（F25 原逻辑）
+  var dropTarget = computeDropTarget(dragState.id, cy);
+  updateDragVisual(dropTarget, cx, cy);
+}
+
+/* F29 跨分区行级落点：目标分区同状态组内按指针中点判定上/下方；
+   带外钳位（指针在组首上方 → 组首前；组末下方 → 组末后），
+   组内无同状态行 → null（松手走 setPriority 落组末尾兜底） */
+function computeCrossZoneDropTarget(dragId, zoneEl, pointerY) {
+  var dragNote = notes[findIndexById(dragId)];
+  if (!dragNote || !zoneEl) return null;
+  var p = parseInt(zoneEl.dataset.p, 10);
+  if (isNaN(p) || p === dragNote.priority) return null;
+  var list = zoneEl.querySelector('.note-list[data-list="' + p + '"]');
+  if (!list) return null;
+  var rows = [];
+  var all = list.querySelectorAll('.note');
+  for (var i = 0; i < all.length; i++) {
+    var note = notes[findIndexById(all[i].dataset.id)];
+    if (note && note.status === dragNote.status) rows.push(all[i]);
+  }
+  if (rows.length === 0) return null;
+  var targetRow = null, insertAfter = false;
+  for (var j = 0; j < rows.length; j++) {
+    var r = rows[j].getBoundingClientRect();
+    if (pointerY < r.top + r.height / 2) { targetRow = rows[j]; insertAfter = false; break; }
+  }
+  if (!targetRow) { targetRow = rows[rows.length - 1]; insertAfter = true; }   // 指针在末行中点之下 → 组末后（钳位）
+  return { targetId: targetRow.dataset.id, insertAfter: insertAfter, row: targetRow, crossZone: true };
+}
+
+/* F29 跨分区按位次移动：目标分区同状态组内插入到 targetId 上/下方，seq 全组重编号 */
+function moveNoteCross(dragId, targetId, insertAfter, targetP) {
+  var dragNote = notes[findIndexById(dragId)];
+  var targetNote = notes[findIndexById(targetId)];
+  if (!dragNote || !targetNote) return;
+  if (targetNote.priority !== targetP) return;
+  if (dragNote.priority === targetP) return;   // 同分区路径由 reorderNote 负责
+
+  var grouped = { 0: [], 1: [], 2: [], 3: [] };
+  notes.forEach(function (n) { grouped[n.priority].push(n); });
+  var sortedGroup = sortForDisplay(grouped[targetP])
+    .filter(function (n) { return n.status === dragNote.status; });
+
+  /* 防御：被拖行理论上不在目标组内，若在则先摘除 */
+  var dragIdx = sortedGroup.findIndex(function (n) { return n.id === dragId; });
+  if (dragIdx > -1) sortedGroup.splice(dragIdx, 1);
+  var tIdx = sortedGroup.findIndex(function (n) { return n.id === targetId; });
+  if (tIdx === -1) return;
+  sortedGroup.splice(insertAfter ? tIdx + 1 : tIdx, 0, dragNote);
+
+  /* 数据层：原位置摘除 → 改分区 → 插到目标行邻位（与渲染层序一致） */
+  var srcIdx = findIndexById(dragId);
+  notes.splice(srcIdx, 1);
+  dragNote.priority = targetP;
+  dragNote.movedAt = Date.now();   // 入区时间 = 移动时刻（与 ⇅/setPriority 口径一致）
+  var tIdxData = findIndexById(targetId);
+  notes.splice(insertAfter ? tIdxData + 1 : tIdxData, 0, dragNote);
+
+  /* 目标组 seq 全覆盖重编号（拖拽落位 = 手动序） */
+  sortedGroup.forEach(function (n, idx) { n.seq = idx + 1; });
+
+  persist();
+  render();
 }
 
 function updateDragVisual(dropTarget, cx, cy) {
@@ -788,10 +944,13 @@ function startEdit(row, id) {
     }
   }
   input.addEventListener('keydown', function (e) {
+    if (isImeComposing(e)) return;   // 输入法选字回车不保存（不拦截，交给 IME）
     if (e.key === 'Enter') { e.preventDefault(); finish(true); }
     else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
   });
-  input.addEventListener('blur', function () { finish(false); });
+  /* 失焦即保存：双击/点 ✎ 进入编辑后，点别处不用回车也保存（Esc 仍取消）。
+     finish 内 done 标记幂等，render 移除节点后的补偿 blur 不会二次触发 */
+  input.addEventListener('blur', function () { finish(true); });
 }
 
 /* ============================================================
@@ -866,6 +1025,7 @@ function openInlineInput(zone, p) {
     }
   }
   input.addEventListener('keydown', function (e) {
+    if (isImeComposing(e)) return;   // 输入法选字回车不保存（不拦截，交给 IME）
     if (e.key === 'Enter') { e.preventDefault(); finish(true); }
     else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
   });
@@ -902,6 +1062,7 @@ function removeInlineInput() {
    顶栏快速输入：回车添加，默认 P3
    ============================================================ */
 quickInput.addEventListener('keydown', function (e) {
+  if (isImeComposing(e)) return;   // 输入法选字回车不保存（不拦截，交给 IME）
   if (e.key !== 'Enter') return;
   e.preventDefault();
   var t = quickInput.value.trim();
@@ -1386,6 +1547,7 @@ function pasteConditionsOk() {
   return !!pasteHoverZone && pasteHoverZone.isConnected &&
          !app.classList.contains('collapsed') &&  // 收起态不响应（PRD F17）
          document.hasFocus() &&                   // 窗口前台（PRD F17）
+         !document.body.classList.contains('dragging') &&  // F29：拖拽期间不显示粘贴提示（与跨分区高亮互斥）
          !focusInEditable();                      // 输入控件优先，系统粘贴照常（PRD F17）
 }
 
