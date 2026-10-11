@@ -115,7 +115,7 @@ var I18N = (function () {
       pasteMac: '⌘V 粘贴到这里', pasteWin: 'Ctrl+V 粘贴到这里',
       ariaAbout: '关于 Mark it!',
       aboutToggle: '匿名使用统计',
-      aboutPrivacy: '仅上报随机编号、版本与语言，不含笔记内容',
+      aboutPrivacy: '我们仅收集匿名编号、版本与语言信息，用于产品迭代决策，不涉及任何笔记内容。你可随时关闭上报。',
       calTitle: function (y, m) { return y + '年' + (m + 1) + '月'; }
     },
     'zh-Hant': {
@@ -133,7 +133,7 @@ var I18N = (function () {
       pasteMac: '⌘V 貼上到這裡', pasteWin: 'Ctrl+V 貼上到這裡',
       ariaAbout: '關於 Mark it!',
       aboutToggle: '匿名使用統計',
-      aboutPrivacy: '僅上報隨機編號、版本與語言，不含筆記內容',
+      aboutPrivacy: '我們僅收集匿名編號、版本與語言資訊，用於產品迭代決策，不涉及任何筆記內容。你可隨時關閉上報。',
       calTitle: function (y, m) { return y + '年' + (m + 1) + '月'; }
     },
     'en': {
@@ -151,7 +151,7 @@ var I18N = (function () {
       pasteMac: '⌘V to paste here', pasteWin: 'Ctrl+V to paste here',
       ariaAbout: 'About Mark it!',
       aboutToggle: 'Anonymous usage stats',
-      aboutPrivacy: 'Only a random ID, app version and language are sent — never your notes',
+      aboutPrivacy: 'We collect only an anonymous ID, app version and language, used solely for product improvement decisions — never your notes. You can turn off reporting at any time.',
       calTitle: function (y, m) { return ['January','February','March','April','May','June','July','August','September','October','November','December'][m] + ' ' + y; }
     }
   };
