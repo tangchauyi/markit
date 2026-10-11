@@ -1103,9 +1103,13 @@ border-left-color: var(--bar-dropped);       /* v1.8a：放弃=固定灰，彻�
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 0 2px;
+  padding: 8px 8px;               /* 与 .bm-item 同内距，整行视觉/可点区域一致 */
+  border-radius: 8px;
+  cursor: pointer;
 }
-.bm-upd-row .bm-item { flex: none; width: auto; }  /* 覆盖 .bm-item 的 width:100%，否则按钮占满整行把状态文字挤出菜单外 */
+.bm-upd-row:hover { background: var(--hover); }
+.bm-upd-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.bm-upd-row .bm-item { flex: none; width: auto; padding: 0; }  /* 覆盖 .bm-item 的 width:100%/padding，按钮仅承载文字，点击热区由整行承担 */
 .bm-status {
   margin-left: auto;
   font-size: 11px;

@@ -1790,6 +1790,8 @@ function openBrandMenu() {
   var itUpd = document.createElement('button'); itUpd.type = 'button';
   itUpd.className = 'bm-item bm-item-upd'; itUpd.textContent = I18N.t('menuUpdate');
   var row = document.createElement('div'); row.className = 'bm-upd-row';
+  row.setAttribute('role', 'button'); row.tabIndex = 0;   // 整行可点（点击热区=全条），键盘可达
+  row.setAttribute('aria-label', I18N.t('menuUpdate'));
   row.appendChild(itUpd);
   var st = document.createElement('span'); st.className = 'bm-status'; st.textContent = '';
   row.appendChild(st);
@@ -1802,7 +1804,13 @@ function openBrandMenu() {
   document.getElementById('app').appendChild(menu);
   bmenuState.open = true; bmenuState.el = menu;
   itAbout.addEventListener('click', function () { closeBrandMenu(); openAboutPage(); });
-  itUpd.addEventListener('click', checkUpdate);
+  row.addEventListener('click', function (e) {   // 整行触发检查更新；点「下载安装」按钮时不触发
+    if (e.target && e.target.closest && e.target.closest('.bm-download')) return;
+    checkUpdate();
+  });
+  row.addEventListener('keydown', function (e) { // 键盘可达：Enter/空格
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); checkUpdate(); }
+  });
 }
 
 var aboutPageEl = null;
