@@ -93,10 +93,13 @@ function registerAppScheme() {
          白名单扩展名 + 归一化后必须落在 __dirname 内，防目录逃逸；行为零变更（原为 404 的仅 assets 路径）。 */
       const MIME = { '.css': 'text/css; charset=utf-8', '.js': 'application/javascript; charset=utf-8' };
       const rel0 = decodeURIComponent(url.pathname).replace(/^\/+/, '');
+      /* URL pathname 恒为正斜杠，Windows path.sep 为反斜杠——
+         归一成 / 再做前缀判断（v1.0.2 修复 Windows 下 assets 全部 404） */
+      const relFwd = rel0.replace(/\\/g, '/');
       const file = path.normalize(path.join(__dirname, rel0));
       const ext = path.extname(file).toLowerCase();
       /* 白名单仅限 assets/ 下（QA P2 收紧：原实现覆盖整个 __dirname，node_modules 内文件可被 SERVE） */
-      if (MIME[ext] && rel0.startsWith('assets' + path.sep) && file.startsWith(__dirname + path.sep)) {
+      if (MIME[ext] && relFwd.startsWith('assets/') && file.startsWith(__dirname + path.sep)) {
         try {
           return new Response(fs.readFileSync(file), { headers: { 'content-type': MIME[ext] } });
         } catch (e) { return new Response('not found', { status: 404 }); }
@@ -187,7 +190,14 @@ function runSmoke() {
       var lsOk = false;
       try { localStorage.setItem('mk_smoke', '1'); lsOk = localStorage.getItem('mk_smoke') === '1'; localStorage.removeItem('mk_smoke'); } catch (e) {}
       var hasApp = !!(document.getElementById('app') && document.querySelector('.zone[data-p="0"]'));
-      return { injected: injected, hasHost: hasHost, lsOk: lsOk, hasApp: hasApp, raw: String(window.__MARKIT_NOTES__) };
+      /* v1.0.2：静态资源可加载性（Windows path.sep 回归防护） */
+      return Promise.all([
+        fetch('markit://app/assets/css/app.css'),
+        fetch('markit://app/assets/js/app.js')
+      ]).then(function (rs) {
+        return { injected: injected, hasHost: hasHost, lsOk: lsOk, hasApp: hasApp,
+                 cssOk: rs[0].ok, jsOk: rs[1].ok, raw: String(window.__MARKIT_NOTES__) };
+      });
     })()`;
     win.webContents.executeJavaScript(probe).then((r) => {
       console.log('SMOKE renderer: ' + JSON.stringify(r));
@@ -195,6 +205,8 @@ function runSmoke() {
       if (!r.hasHost) return fail('markitHost 未暴露');
       if (!r.lsOk) return fail('自定义 scheme 下 localStorage 不可用');
       if (!r.hasApp) return fail('页面结构缺失');
+      if (!r.cssOk) return fail('assets/css/app.css 经 markit:// 加载失败（404？）');
+      if (!r.jsOk) return fail('assets/js/app.js 经 markit:// 加载失败（404？）');
       return win.webContents.executeJavaScript(
         'window.markitHost.persist(JSON.stringify([{id:"s1",text:"冒烟</scr' + 'ipt>",priority:0,createdAt:1}]))'
       ).then(() => new Promise((res) => setTimeout(res, 400)));
