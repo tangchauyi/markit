@@ -20,11 +20,12 @@ jobs:
           node-version: 22
 
       - name: Install deps
+        # lockfile 的 resolved 指向内网镜像 r.npm.sankuai.com，云主机不可达；
+        # CI 侧用公网 registry 全新安装（本地开发仍走 lockfile 内网镜像）
         run: |
-          npm ci --no-audit --no-fund || {
-            echo "::warning::npm ci 崩溃（npm Windows 已知 bug：Exit handler never called），重试一次"
-            npm ci --no-audit --no-fund
-          }
+          rm -f package-lock.json
+          npm install --registry=https://registry.npmjs.org --no-audit --no-fund \
+            || npm install --registry=https://registry.npmjs.org --no-audit --no-fund
         shell: bash
 
       - name: Smoke from source (MARKIT_SMOKE)
