@@ -45,7 +45,7 @@ jobs:
           grep -q "SMOKE DONE ALL PASS" smoke-source.log
 
       - name: Build NSIS installer
-        run: ./node_modules/.bin/electron-builder --win nsis --x64
+        run: ./node_modules/.bin/electron-builder --win nsis --x64 --publish never
         shell: bash
 
       - name: Silent install (NSIS /S)
