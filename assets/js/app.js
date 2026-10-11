@@ -95,7 +95,7 @@ var undoBtn = document.getElementById('undoBtn');
 /* ============================================================
    F29 i18n（v1.11，2026-10-11）：启动时探测系统语言，适配 zh-CN / zh-Hant / en。
    跟随系统、不做运行中切换与偏好持久化（改系统语言后重启生效，PRD F29）；
-   探测失败/未知语言兜底 zh-CN（产品主场，同时保证自测确定性）。
+   探测失败/未知语言兜底 en（国际通用语，产品决策 2026-10-11：非中文/英文系统用户看英语比看简中可用性更高；自测 shim 无 location → l 为空 → 同样落 en，确定性不变）。
    仅供自测注入：I18N.setLocale('en') + applyStaticI18n()。
    ============================================================ */
 var I18N = (function () {
@@ -150,14 +150,14 @@ var I18N = (function () {
     var l = '';
     try {
       // 仅在真实浏览器/renderer 环境信任 navigator.language（有 location）；
-      // Node 自测 shim 的 navigator.language 是宿主机 en-US，会破坏确定性 → 兜底 zh-CN
+      // Node 自测 shim 的 navigator.language 是宿主机 en-US，不参与探测（无 location）→ 兜底 en
       if (typeof location !== 'undefined' && location.href &&
           typeof navigator !== 'undefined' && navigator.language)
         l = String(navigator.language).toLowerCase();
     } catch (e) {}
     if (l.indexOf('zh') === 0) return /(tw|hk|mo|hant)/.test(l) ? 'zh-Hant' : 'zh-CN';
     if (l.indexOf('en') === 0) return 'en';
-    return 'zh-CN';
+    return 'en';
   })();
   function t(k) { return DICT[cur][k]; }
   function setLocale(l) { if (DICT[l]) cur = l; }   // 仅供自测注入，产品路径不调用

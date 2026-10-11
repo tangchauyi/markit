@@ -173,6 +173,9 @@ global.document = {
 function docFire(type, ev) { (docListeners[type] || []).slice().forEach(function (f) { f(ev || {}); }); }
 
 global.window = global;
+// F29 兜底改 en 后，测试须显式提供探测输入（zh-CN）；Node 24+ navigator 为只读 getter，必须 defineProperty
+global.location = { href: 'markit://shim/index.html' };
+Object.defineProperty(global, 'navigator', { value: { language: 'zh-CN', platform: 'MacIntel' }, configurable: true, writable: true });
 global.innerWidth = 360; global.innerHeight = 640;
 global.localStorage = {
   _s: {},

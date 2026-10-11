@@ -73,6 +73,14 @@ global.document = {
   body: new El('body')
 };
 global.window = global;
+// F29 兜底改 en 后，测试必须显式提供探测输入：location.href + navigator.language
+// 走真实探测路径（zh-CN），不再依赖「无 location → 兜底」这条产品逻辑
+global.location = { href: 'markit://shim/index.html' };
+// Node 24+ 的 navigator 是只读 getter，普通赋值静默失败，必须 defineProperty
+Object.defineProperty(global, 'navigator', {
+  value: { language: 'zh-CN', platform: 'MacIntel' },
+  configurable: true, writable: true
+});
 global.innerWidth = 360; global.innerHeight = 640;
 global.localStorage = {
   _s: {},

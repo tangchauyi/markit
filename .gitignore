@@ -17,3 +17,4 @@ docs/README-share.md
 /transition*.html
 /demo-userdata/
 /.mock-userdata/
+/.mock-lang-*/
