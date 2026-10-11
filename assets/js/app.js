@@ -1702,7 +1702,7 @@ var brandEl = document.getElementById('brandBtn');
 var bmenuState = { open: false, el: null };
 var UPD = { checking: false, latest: null, asset: null };   // 行内状态（菜单重建即重置，可接受）
 
-var UPDATE_REPO = '';   // GitHub 仓库 'owner/repo'；留空 = 更新源未配置（发布时填入）
+var UPDATE_REPO = 'tangchauyi/markit';   // GitHub 更新源（须 public；发 Release 资产名需含 arm64.dmg / Setup*.exe）
 
 function appVersion() {
   return (typeof window.__MARKIT_VERSION__ === 'string' && window.__MARKIT_VERSION__) || 'dev';
@@ -1742,8 +1742,9 @@ function checkUpdate() {   // F31：行内三态；手动触发，不后台轮�
     }
     fetch('https://api.github.com/repos/' + UPDATE_REPO + '/releases/latest', {
       headers: { 'Accept': 'application/vnd.github+json' }
-    }).then(function (r) { return r.ok ? r.json() : null; }).then(function (rel) {
+    }).then(function (r) { return r.ok ? r.json() : { __status: r.status }; }).then(function (rel) {
       UPD.checking = false;
+      if (rel && rel.__status === 404) { setUpdStatus(I18N.t('updLatest'), 'ok'); return; }  // 仓库尚无任何 Release = 已是最新
       if (!rel || !rel.tag_name) { setUpdStatus(I18N.t('updFailed'), 'warn'); return; }
       var assets = (rel.assets || []);
       var isMac = !IS_WIN;
