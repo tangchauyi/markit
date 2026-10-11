@@ -152,6 +152,12 @@ body {
   align-items: center;
   gap: 6px;
   min-width: 0;
+  /* F31 修复：顶栏是 drag 区，会吞掉真实鼠标点击（表现为双击触发系统「缩放窗口」）。
+     必须 no-drag 双击才能到达渲染层；代价：这一小块不能再拖动窗口（其余顶栏仍可拖） */
+  -webkit-app-region: no-drag;
+  /* 负 margin 抵消 padding：视觉不变、热区外扩 6px，双击更好命中 */
+  padding: 6px 8px;
+  margin: -6px -8px;
 }
 .brand-mark {
   flex: none;
