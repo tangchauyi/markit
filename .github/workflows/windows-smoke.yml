@@ -20,7 +20,11 @@ jobs:
           node-version: 22
 
       - name: Install deps
-        run: npm ci
+        run: |
+          npm ci --no-audit --no-fund || {
+            echo "::warning::npm ci 崩溃（npm Windows 已知 bug：Exit handler never called），重试一次"
+            npm ci --no-audit --no-fund
+          }
         shell: bash
 
       - name: Smoke from source (MARKIT_SMOKE)
