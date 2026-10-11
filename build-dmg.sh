@@ -10,7 +10,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 APP="$ROOT/dist/mac-arm64/Mark it!.app"
-OUT="$ROOT/dist/Mark-it-1.0.0-arm64.dmg"
+VERSION=$(node -p "require('$ROOT/package.json').version")
+OUT="$ROOT/dist/Mark-it-$VERSION-arm64.dmg"
 RAW="$ROOT/markit-raw.dmg"
 
 [ -d "$APP" ] || { echo "缺 $APP，先跑: npx electron-builder --mac dir" >&2; exit 1; }
