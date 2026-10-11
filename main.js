@@ -8,6 +8,13 @@ const { app, BrowserWindow, ipcMain, protocol, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+const IS_MAC = process.platform === 'darwin';
+const IS_WIN = process.platform === 'win32';
+
+/* Windows：禁硬件加速。部分 Windows GPU 环境下合成器不可靠，会出现
+   透明窗整窗不可见 / 白屏（本应用为小看板，无需 GPU 加速，关掉换兼容性） */
+if (IS_WIN) app.disableHardwareAcceleration();
+
 /* ---------- 冒烟模式（MARKIT_SMOKE=1）：自动化断言，供回归验证 ----------
    在无头/受限 CI 环境禁 GPU 与 Chromium 沙箱，并用隔离的临时 userData。 */
 if (process.env.MARKIT_SMOKE) {
@@ -129,11 +136,15 @@ function createWindow() {
     frame: false,
     resizable: false,
     alwaysOnTop: pinned,
-    transparent: true,
+    /* 平台化窗口材质（v1.0.1 Windows 修复）：
+       - macOS：透明窗 + vibrancy 毛玻璃（原设计）
+       - Windows：不透明实底窗。transparent:true 在 Windows 部分 GPU
+         下整窗不可见；vibrancy 也是 macOS 专属，不传 */
+    transparent: IS_MAC,
     hasShadow: true,
-    vibrancy: 'under-window',
-    visualEffectState: 'active',
-    backgroundColor: '#00000000',
+    vibrancy: IS_MAC ? 'under-window' : undefined,
+    visualEffectState: IS_MAC ? 'active' : undefined,
+    backgroundColor: IS_MAC ? '#00000000' : '#F2F2F7',
     title: 'Mark it!',
     show: false,
     webPreferences: {
@@ -146,6 +157,8 @@ function createWindow() {
   });
 
   win.once('ready-to-show', () => win.show());
+  /* 兜底：个别 GPU 环境下 ready-to-show 可能不触发，1.5s 后强制显示 */
+  setTimeout(() => { if (win && !win.isDestroyed() && !win.isVisible()) win.show(); }, 1500);
   if (pinned) win.setAlwaysOnTop(true, 'floating');
 
   win.loadURL(SCHEME + '://app/index.html');

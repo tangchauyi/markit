@@ -1,7 +1,7 @@
 {
   "name": "markit",
   "productName": "Mark it!",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Mark it! — 常驻 macOS 桌面角落的四象限便签看板（plan for it）",
   "author": "markit",
   "main": "main.js",
