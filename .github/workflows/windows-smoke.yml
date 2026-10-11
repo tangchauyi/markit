@@ -1,0 +1,73 @@
+name: windows-smoke
+
+# 在真 Windows 云主机上验证：源码冒烟 → 打 NSIS 包 → 静默安装 → 启动截屏
+# 目的：Mac 上无法发现的 Windows 平台 bug（如 path.sep 404、透明窗不可见）在此暴露
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps
+        run: npm ci
+        shell: bash
+
+      - name: Smoke from source (MARKIT_SMOKE)
+        env:
+          MARKIT_SMOKE: '1'
+        shell: bash
+        run: |
+          set -o pipefail
+          npx electron . 2>&1 | tee smoke-source.log
+          grep -q "SMOKE DONE ALL PASS" smoke-source.log
+
+      - name: Build NSIS installer
+        run: npx electron-builder --win nsis --x64
+        shell: bash
+
+      - name: Silent install (NSIS /S)
+        shell: powershell
+        run: |
+          $installer = Get-ChildItem "dist" -Filter "Setup *.exe" | Select-Object -First 1
+          Write-Host "installer: $($installer.FullName)"
+          Start-Process $installer.FullName -ArgumentList "/S" -Wait
+          Start-Sleep -Seconds 3
+          $app = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter "Mark it!.exe" |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $app) { throw "installed Mark it!.exe not found" }
+          Write-Host "installed: $app"
+          "INSTALLED_PATH=$app" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Launch installed app + screenshot
+        shell: powershell
+        run: |
+          Start-Process $env:INSTALLED_PATH
+          Start-Sleep -Seconds 10   # 等窗口就绪
+          Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          $g = [System.Drawing.Graphics]::FromImage($bmp)
+          $g.CopyFromScreen(0, 0, 0, 0, $bmp.Size)
+          $bmp.Save("$PWD\win-screenshot.png")
+          Write-Host "screenshot saved"
+          Stop-Process -Name "Mark it!" -Force -ErrorAction SilentlyContinue
+
+      - name: Upload screenshot & logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-verify
+          path: |
+            win-screenshot.png
+            smoke-source.log
+          if-no-files-found: error
