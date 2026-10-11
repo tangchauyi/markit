@@ -93,10 +93,10 @@ var toast = document.getElementById('toast');
 var undoBtn = document.getElementById('undoBtn');
 
 var EMPTY_TEXT = {
-  0: '双击此处，先记下最要紧的事',
-  1: '双击此处，安排重要的事',
-  2: '双击此处，记下急事先处理',
-  3: '双击此处，随手记点什么'
+  0: 'Double-click to add the most urgent thing',
+  1: 'Double-click to add something important',
+  2: 'Double-click to add something urgent',
+  3: 'Double-click to jot down anything'
 };
 var ZONE_NAMES = {
   0: 'P0 重要且紧急',
@@ -997,7 +997,7 @@ function openInlineInput(zone, p) {
   var input = document.createElement('input');
   input.className = 'inline-input';
   input.type = 'text';
-  input.placeholder = '记一条，回车保存';
+  input.placeholder = 'Type a note — Enter to save';
   input.spellcheck = false;
 
   var gwrap = document.createElement('div');
@@ -1169,9 +1169,10 @@ function keyOfTs(ts) {
   return keyOfDate(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-// 「有记录」事件（PRD F15）：新建(createdAt) / 最近一次完成/放弃(statusAt)。
-// 存量兼容：无 statusAt（=0）的状态笔记按无状态事件处理，只计 createdAt 新建日。
-// 取消不计记录：↺ 恢复 open 时 statusAt 已清零，自然不再出现在任何日期。
+// 「有记录」事件（PRD F15，解耦口径）：新建(createdAt) 与 最近一次完成/放弃(statusAt) 各自独立计入。
+// 同日多事件仍只落一个点（PRD 硬约束）；创建日永远有点，状态日另计——隔天完成时两天各有一点。
+// 取消不计记录：↺ 恢复 open 时 statusAt 已清零，状态日自然消失；新建日不受影响。
+// 存量兼容：无 statusAt（=0）的终态旧数据按无状态事件处理，只计 createdAt 新建日。
 function noteHasStatusEvent(n) {
   return n.statusAt > 0 && (n.status === 'done' || n.status === 'dropped');
 }
@@ -1180,20 +1181,20 @@ function recordedDayKeys() {
   var set = {};
   notes.forEach(function (n) {
     var hasStatus = noteHasStatusEvent(n);
-    // 口径与 eventsForDay 一致：已有终态的笔记只记状态日，不再计新建日（防「有点无内容」空日期）
-    if (n.createdAt > 0 && !hasStatus) set[keyOfTs(n.createdAt)] = true;
+    // 解耦：新建日始终计入（哪怕后来完成/放弃）；状态日独立另计。两点同日自然合一。
+    if (n.createdAt > 0) set[keyOfTs(n.createdAt)] = true;
     if (hasStatus) set[keyOfTs(n.statusAt)] = true;
   });
   return set;
 }
 
 // 某日详情事件归集：新建/完成/放弃三组，组内按事件时间升序（§O）
-// 修订：已有终态（完成/放弃）的笔记不再计入「新建」组，只展示当前状态事件
+// 解耦口径：笔记在某日「新建」与该日「完成/放弃」可同时计入各组——当天记当天完成 → 同日出现在新建组与完成组
 function eventsForDay(key) {
   var evts = { created: [], done: [], dropped: [] };
   notes.forEach(function (n) {
     var hasStatus = noteHasStatusEvent(n);
-    if (n.createdAt > 0 && !hasStatus && keyOfTs(n.createdAt) === key) evts.created.push(n);
+    if (n.createdAt > 0 && keyOfTs(n.createdAt) === key) evts.created.push(n);
     if (hasStatus && keyOfTs(n.statusAt) === key) {
       (n.status === 'done' ? evts.done : evts.dropped).push(n);
     }
@@ -1205,7 +1206,7 @@ function eventsForDay(key) {
 }
 
 /* ---------- 覆盖层构建 / 销毁 ---------- */
-var CAL_WEEK = ['一', '二', '三', '四', '五', '六', '日'];
+var CAL_WEEK = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 function calNavBtn(dir) {
   var b = document.createElement('button');
@@ -1308,7 +1309,7 @@ function renderCalMonth(dir) {
   if (!grid || !title) return;
   var y = calState.y, m = calState.m;
 
-  title.textContent = y + '年' + (m + 1) + '月';     // 「2026年2月」格式（§N）
+  title.textContent = ['January','February','March','April','May','June','July','August','September','October','November','December'][m] + ' ' + y;     // 「2026年2月」格式（§N）
   title.style.transition = 'none';                   // 120ms fade 同步（§N）
   title.style.opacity = '0';
   void title.offsetWidth;
@@ -1437,7 +1438,7 @@ function renderCalDetail() {
   if (!calState.selKey) {
     var hint = document.createElement('div');      // 默认提示（§P）
     hint.className = 'cal-hint';
-    hint.textContent = '点一个日期，回看那天的记录';
+    hint.textContent = 'Pick a day to revisit your notes';
     inner.appendChild(hint);
   } else {
     var evts = eventsForDay(calState.selKey);
@@ -1445,7 +1446,7 @@ function renderCalDetail() {
     if (total === 0) {
       var empty = document.createElement('div');   // 空态日期（§O）
       empty.className = 'cal-empty-day';
-      empty.textContent = '这天没有留下记录';
+      empty.textContent = 'No notes on this day';
       empty.appendChild(buildScribble());          // 马克笔划线 opacity 0.5
       inner.appendChild(empty);
     } else {
