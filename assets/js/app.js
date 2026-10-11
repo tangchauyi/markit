@@ -113,6 +113,9 @@ var I18N = (function () {
       calHint: '点一个日期，回看那天的记录', calEmpty: '这天没有留下记录',
       capsuleTitle: '拖动移动位置', expand: '展开',
       pasteMac: '⌘V 粘贴到这里', pasteWin: 'Ctrl+V 粘贴到这里',
+      ariaAbout: '关于 Mark it!',
+      aboutToggle: '匿名使用统计',
+      aboutPrivacy: '仅上报随机编号、版本与语言，不含笔记内容',
       calTitle: function (y, m) { return y + '年' + (m + 1) + '月'; }
     },
     'zh-Hant': {
@@ -128,6 +131,9 @@ var I18N = (function () {
       calHint: '點一個日期，回看那天的記錄', calEmpty: '這天沒有留下記錄',
       capsuleTitle: '拖動移動位置', expand: '展開',
       pasteMac: '⌘V 貼上到這裡', pasteWin: 'Ctrl+V 貼上到這裡',
+      ariaAbout: '關於 Mark it!',
+      aboutToggle: '匿名使用統計',
+      aboutPrivacy: '僅上報隨機編號、版本與語言，不含筆記內容',
       calTitle: function (y, m) { return y + '年' + (m + 1) + '月'; }
     },
     'en': {
@@ -143,6 +149,9 @@ var I18N = (function () {
       calHint: 'Pick a day to revisit your notes', calEmpty: 'No notes on this day',
       capsuleTitle: 'Drag to move', expand: 'Expand',
       pasteMac: '⌘V to paste here', pasteWin: 'Ctrl+V to paste here',
+      ariaAbout: 'About Mark it!',
+      aboutToggle: 'Anonymous usage stats',
+      aboutPrivacy: 'Only a random ID, app version and language are sent — never your notes',
       calTitle: function (y, m) { return ['January','February','March','April','May','June','July','August','September','October','November','December'][m] + ' ' + y; }
     }
   };
@@ -196,6 +205,7 @@ function applyStaticI18n() {
   var q = function (s) { return document.querySelector(s); };
   if (q('#quickInput')) q('#quickInput').placeholder = I18N.t('placeholder');
   if (q('#calBtn')) q('#calBtn').setAttribute('aria-label', I18N.t('ariaCal'));
+  if (q('#aboutBtn')) q('#aboutBtn').setAttribute('aria-label', I18N.t('ariaAbout'));
   if (q('#collapseBtn')) q('#collapseBtn').setAttribute('aria-label', I18N.t('ariaCollapse'));
   if (q('#closeBtn')) q('#closeBtn').setAttribute('aria-label', I18N.t('ariaClose'));
   if (q('#capsule')) q('#capsule').title = I18N.t('capsuleTitle');
@@ -204,6 +214,95 @@ function applyStaticI18n() {
   if (q('#undoBtn')) q('#undoBtn').textContent = I18N.t('undo');
 }
 applyStaticI18n();
+
+/* ============================================================
+   F30 匿名启动统计（v1.12，PRD 第 14 章）：PostHog 原生 fetch 上报，零 SDK 依赖。
+   - 仅上报随机 ID / 版本 / 平台 / 语言，绝不包含笔记内容（诚实人设硬约束）；
+   - opt-out：关于卡片开关写 localStorage['analytics_opt_out']='1'，启动时检查；
+   - PH_KEY 为空 = 未接入采集端，整体 no-op 不发任何请求；
+   - fire-and-forget：失败静默不重试不排队，离线丢事件可接受。
+   ============================================================ */
+var ANALYTICS_OPT_KEY = 'analytics_opt_out';
+var ANALYTICS_ID_KEY = 'anon_id';
+var PH_KEY = 'phc_tJN9yKkuZ6uEKzZVyuFwHz2hpGQbHVJ5eHsmo9g7AZD4';   // PostHog 项目 Key（公开凭据，可嵌入客户端）
+var PH_HOST = 'https://us.i.posthog.com';
+
+function analyticsEnabled() {
+  try { return localStorage.getItem(ANALYTICS_OPT_KEY) !== '1'; } catch (e) { return false; }
+}
+function anonId() {
+  try {
+    var v = localStorage.getItem(ANALYTICS_ID_KEY);
+    if (!v) {
+      v = 'anon-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem(ANALYTICS_ID_KEY, v);
+    }
+    return v;
+  } catch (e) { return null; }
+}
+function reportLaunch() {
+  if (!PH_KEY || !analyticsEnabled()) return;   // 未接入 / 用户拒绝 / 存储异常 → 不上报
+  try {
+    // 自测 shim（有 location 才算真实 renderer）与老环境不上报
+    if (typeof fetch !== 'function' || typeof location === 'undefined' || !location.href) return;
+    sendEvent('app_launch');
+  } catch (e) { /* 网络异常不崩应用 */ }
+}
+function sendEvent(ev) {
+  try {
+    var appVer = (typeof window.__MARKIT_VERSION__ === 'string' && window.__MARKIT_VERSION__) || 'dev';
+    fetch(PH_HOST + '/i/v0/e/', {
+      method: 'POST', keepalive: true,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: PH_KEY, event: ev, distinct_id: anonId(),
+        properties: { $lib: 'markit-app', version: appVer,
+          os: IS_WIN ? 'windows' : 'mac', lang: I18N.locale() }
+      })
+    }).catch(function () {});
+  } catch (e) { /* 网络异常不崩应用 */ }
+}
+reportLaunch();
+
+/* F30b 跨天心跳（v1.13）：app 长期不关时，方案二的启动上报只会记到启动当天，
+   by-day 统计会漏掉后续挂机日。这里补一个至多每天一条的 app_active 事件：
+   - 本地记 last_ping_day（本地时区自然日，YYYY-MM-DD），同日去重不重发；
+   - 触发点 = 启动时 + 每 30 分钟定时 + 窗口从隐藏恢复可见时（覆盖系统休眠唤醒）；
+   - 复用与 reportLaunch 完全相同的开关/自测豁免/匿名规则，语义 = 「该日 app 处于挂载状态」，
+     不代表用户当天有交互（诚实人设：字段名就叫 app_active，不叫 daily_use）。 */
+var PING_DAY_KEY = 'last_ping_day';
+function localDayKey() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function reportDailyPing() {
+  if (!PH_KEY || !analyticsEnabled()) return;
+  if (typeof fetch !== 'function' || typeof location === 'undefined' || !location.href) return;
+  var today;
+  try { today = localStorage.getItem(PING_DAY_KEY); } catch (e) { today = null; }
+  var dayKey = localDayKey();
+  if (today === dayKey) return;                     // 今天已报 → 不重发
+  try { localStorage.setItem(PING_DAY_KEY, dayKey); } catch (e) { /* 隐私模式等 */ }
+  try {
+    var appVer = (typeof window.__MARKIT_VERSION__ === 'string' && window.__MARKIT_VERSION__) || 'dev';
+    fetch(PH_HOST + '/i/v0/e/', {
+      method: 'POST', keepalive: true,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: PH_KEY, event: 'app_active', distinct_id: anonId(),
+        properties: { $lib: 'markit-app', version: appVer,
+          os: IS_WIN ? 'windows' : 'mac', lang: I18N.locale() }
+      })
+    }).catch(function () {});
+  } catch (e) { /* 网络异常不崩应用 */ }
+}
+reportDailyPing();                                             // 启动当天立即补一条
+setInterval(reportDailyPing, 30 * 60 * 1000);                  // 每半小时检查跨天
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) reportDailyPing();                   // 唤醒/切回时兜底检查
+  });
+}
 
 /* ============================================================
    渲染：按优先级分组，重建四个分区列表 + 角标 + 空态
@@ -1575,6 +1674,77 @@ document.addEventListener('click', function (e) {  // 卡片内事件委托：�
 document.addEventListener('keydown', function (e) {  // 关闭方式②：Esc
   if (e.key === 'Escape' && calState.open) closeCalendar();
 });
+
+/* ============================================================
+   F30 关于卡片（v1.12）：版本 / 隐私说明 / 匿名统计开关（opt-out）。
+   交互复用日历卡模式：锚定下拉、点外关闭、Esc、卡内 ✕；与日历互斥
+   （pointerdown 先关闭日历 → click 再开关于，天然不叠层）。
+   ============================================================ */
+var aboutBtn = document.getElementById('aboutBtn');
+var aboutState = { open: false, el: null };
+
+function closeAbout() {
+  if (!aboutState.open || !aboutState.el) return;
+  var el = aboutState.el;
+  aboutState.open = false; aboutState.el = null;
+  try { el.remove(); } catch (e) {}   // 自测 shim 无 remove：真实 DOM 恒可用
+  aboutBtn.classList.remove('active');
+  aboutBtn.setAttribute('aria-expanded', 'false');
+}
+
+function openAbout() {
+  if (aboutState.open) return;
+  var card = document.createElement('div');
+  card.className = 'about-card cal-in';
+  var head = document.createElement('div'); head.className = 'about-head';
+  var name = document.createElement('span'); name.className = 'about-name';
+  name.textContent = 'Mark it!';                       // 品牌名三语不译（F29）
+  var ver = document.createElement('span'); ver.className = 'about-ver';
+  ver.textContent = 'v' + ((typeof window.__MARKIT_VERSION__ === 'string' && window.__MARKIT_VERSION__) || 'dev');
+  var x = document.createElement('button'); x.className = 'about-close icon-btn'; x.type = 'button';
+  x.textContent = '✕'; x.setAttribute('aria-label', I18N.t('ariaCloseCal'));
+  head.appendChild(name); head.appendChild(ver); head.appendChild(x);
+  var privacy = document.createElement('p'); privacy.className = 'about-privacy';
+  privacy.textContent = I18N.t('aboutPrivacy');
+  var row = document.createElement('div'); row.className = 'about-row';
+  var lb = document.createElement('label'); lb.className = 'about-toggle-label';
+  lb.textContent = I18N.t('aboutToggle');
+  var sw = document.createElement('input'); sw.type = 'checkbox'; sw.className = 'about-switch';
+  sw.checked = analyticsEnabled();
+  sw.addEventListener('change', function () {
+    try {
+      if (sw.checked) localStorage.removeItem(ANALYTICS_OPT_KEY);
+      else localStorage.setItem(ANALYTICS_OPT_KEY, '1');
+    } catch (e) { /* 存储异常：开关仅视觉态 */ }
+  });
+  lb.appendChild(sw);
+  row.appendChild(lb);
+  card.appendChild(head); card.appendChild(privacy); card.appendChild(row);
+  document.getElementById('app').appendChild(card);
+  aboutState.open = true; aboutState.el = card;
+  aboutBtn.classList.add('active');
+  aboutBtn.setAttribute('aria-expanded', 'true');
+}
+
+if (aboutBtn) {   // 自测 shim 无此元素：整块跳过
+  aboutBtn.addEventListener('click', function () {
+    if (aboutState.open) closeAbout(); else openAbout();
+  });
+  document.addEventListener('pointerdown', function (e) {   // 点外关闭（捕获阶段，同日历）
+    if (!aboutState.open || !aboutState.el) return;
+    if (aboutState.el.contains(e.target)) return;
+    if (aboutBtn.contains(e.target)) return;
+    closeAbout();
+  }, true);
+  document.addEventListener('click', function (e) {         // 卡内委托：✕ 关闭
+    if (!aboutState.open || !aboutState.el) return;
+    if (!aboutState.el.contains(e.target)) return;
+    if (e.target.closest('.about-close')) closeAbout();
+  });
+  document.addEventListener('keydown', function (e) {       // Esc
+    if (e.key === 'Escape' && aboutState.open) closeAbout();
+  });
+}
 
 /* ============================================================
    F16 分区标题显示模式（design §V）：默认精简（徽标+角标），hover 标题行

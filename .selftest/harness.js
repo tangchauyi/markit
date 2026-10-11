@@ -343,5 +343,20 @@ render();
 assert(I18N.t('act').done === '标记完成' && I18N.t('groups').dropped === '放弃', 'T-i6 F29 操作/分组字典完整（zh-CN）');
 assert(typeof applyStaticI18n === 'function', 'T-i7 F29 applyStaticI18n 存在（shim 环境安全跳过静态应用）');
 
+/* --- F30 匿名统计 + 关于卡片（v1.12，2026-10-11）--- */
+assert(html.indexOf('id="aboutBtn"') !== -1, 'T-a1 F30 顶栏含关于入口（index.html aboutBtn）');
+I18N.setLocale('en');
+var _aEn = I18N.t('aboutPrivacy') && I18N.t('aboutToggle') && I18N.t('ariaAbout');
+I18N.setLocale('zh-Hant');
+var _aHant = I18N.t('aboutPrivacy') && I18N.t('aboutToggle') && I18N.t('ariaAbout');
+I18N.setLocale('zh-CN');
+var _aCn = I18N.t('aboutPrivacy') && I18N.t('aboutToggle') && I18N.t('ariaAbout');
+assert(_aEn && _aHant && _aCn, 'T-a2 F30 关于卡片文案三语字典完整（ariaAbout/aboutToggle/aboutPrivacy）');
+assert(typeof analyticsEnabled === 'function' && typeof reportLaunch === 'function', 'T-a3 F30 匿名统计模块存在（reportLaunch/analyticsEnabled）');
+assert(html.indexOf("ANALYTICS_OPT_KEY") !== -1 && html.indexOf("localStorage.setItem(ANALYTICS_OPT_KEY, '1')") !== -1, 'T-a4 F30 opt-out 落地（analytics_opt_out 写入路径）');
+assert(html.indexOf('__MARKIT_VERSION__') !== -1, 'T-a5 F30 版本号注入可用（main.js __MARKIT_VERSION__）');
+assert(typeof PH_KEY === 'string' && PH_KEY.indexOf('phc_') === 0, 'T-a6 F30 采集端已接入（PH_KEY phc_ 前缀）');
+assert(typeof reportDailyPing === 'function' && html.indexOf("'app_active'") !== -1 && html.indexOf("last_ping_day") !== -1, 'T-a7 F30b 按日去重心跳存在（reportDailyPing/app_active/last_ping_day）');
+
 console.log('\n结果：' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

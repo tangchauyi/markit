@@ -120,7 +120,9 @@ function registerAppScheme() {
     // JSON.stringify 一次得到数组字面量；串内 < 转义为 \u003c，既合法 JSON 又防止笔记内容提前闭合 script
     const payload = JSON.stringify(Array.isArray(notesCache) ? notesCache : [])
       .replace(/</g, '\\u003c');
-    const inject = '<script>window.__MARKIT_NOTES__ = ' + payload + ';</script>';
+    const ver = JSON.stringify(app.getVersion());
+    const inject = '<script>window.__MARKIT_NOTES__ = ' + payload + ';' +
+      'window.__MARKIT_VERSION__ = ' + ver + ';</script>';
     html = html.replace('<body>', '<body>' + inject);
     return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8' } });
   });
