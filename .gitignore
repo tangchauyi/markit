@@ -9,3 +9,11 @@ dist/
 # 本地使用文档（不入库）：发布页附注与转发文案
 docs/README-mini.md
 docs/README-share.md
+
+# 演示/宣发本地化副本（2026-10-11 约定，防再次污染正式包）：
+# 正式包只用 index.html；双语演示物料一律复制为独立文件修改，不入库。
+# 背景：英文宣传片文案曾被直接改进 index.html 并误入库，导致正式包变英文（已于 92cc51d revert）。
+/index-en.html
+/transition*.html
+/demo-userdata/
+/.mock-userdata/
