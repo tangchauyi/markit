@@ -300,7 +300,7 @@ assert(/data-list="0"><\/div>\s*(<!--[\s\S]*?-->\s*)?<div class="zone-foot"><spa
   'T8q F23 空白区位于 .note-list 之后、区内仅含 hover 微文案 span（不渲染笔记条与常驻文案）');
 assert(/--zone-foot-min:\s*36px/.test(html),
   'T8r F23 新增 token --zone-foot-min: 36px（§AB 取 PRD 下限，深浅色同值）');
-assert((html.match(/双击记一条/g) || []).length === 4,
+assert((html.match(/zone-foot-hint[^>]*>双击记一条/g) || []).length === 4,
   'T8s F23 §AB hover 微文案恰 4 处（每分区一条，非常驻文案，决策点 36 选「悬停微提示」）');
 assert(/\.zone:has\(\.note\) \.zone-foot:hover \.zone-foot-hint/.test(html),
   'T8t F23 引导去重：微文案仅 ≥1 条笔记分区显示（:has(.note)，零笔记分区不与 F7 空态叠加）');
@@ -312,6 +312,28 @@ assert(/\.zone-foot \.inline-wrap\s*\{[\s\S]*?flex:\s*1/.test(html) && /\.zone-f
   'T8w F24 §AC 输入条嵌入 zone-foot 槽位：撑满 336px 槽宽、32px 于 36px 槽内垂直居中（上下各 2px）');
 assert(/@keyframes inline-out/.test(html) && /\.inline-wrap\.inline-out/.test(html),
   'T8x F24 §AC Esc/blur 取消退场 120ms ease-in（inline-out，Enter 保存路径无退场过渡）');
+
+
+/* --- F29 i18n（v1.11）：字典切换 + 渲染联动（2026-10-11）--- */
+I18N.setLocale('en');
+assert(I18N.t('zoneTitle')[0] === 'Urgent & Important', 'T-i1 F29 setLocale(en) 字典生效（zoneTitle）');
+var _savedNotes = notes.slice();
+notes.length = 0;
+notes.push({ id: 'i18n-a', text: '仅P0一条', priority: 0, createdAt: 1 });
+render();
+var enEmpty = lists[1].children[0];   // shim 迷你 query 引擎只认 note-list/badge 选择器，直接检视子节点
+assert(enEmpty && enEmpty.className === 'empty' && enEmpty.textContent.indexOf('something important') !== -1, 'T-i2 F29 render 空态文案随 locale 联动（en）');
+assert(I18N.t('calTitle')(2026, 9) === 'October 2026', 'T-i3 F29 日历标题 en 格式 October 2026');
+I18N.setLocale('zh-CN');
+assert(I18N.t('calTitle')(2026, 9) === '2026年10月', 'T-i4 F29 日历标题 zh 格式 2026年10月');
+render();
+var zhEmpty = lists[1].children[0];
+assert(zhEmpty && zhEmpty.className === 'empty' && zhEmpty.textContent === '双击此处，安排重要的事', 'T-i5 F29 恢复 zh-CN 渲染空态中文（测试确定性兜底）');
+notes.length = 0;
+Array.prototype.push.apply(notes, _savedNotes);
+render();
+assert(I18N.t('act').done === '标记完成' && I18N.t('groups').dropped === '放弃', 'T-i6 F29 操作/分组字典完整（zh-CN）');
+assert(typeof applyStaticI18n === 'function', 'T-i7 F29 applyStaticI18n 存在（shim 环境安全跳过静态应用）');
 
 console.log('\n结果：' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

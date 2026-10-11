@@ -352,8 +352,7 @@ body {
 }
 /* F17 微提示「⌘V 粘贴到这里」（§W）：absolute 定位零 reflow，进出各 150/120ms */
 .zone::after {
-  content: "⌘V 粘贴到这里";
-  /* v2.1 Windows 版文案（body.win 由 app.js 探测挂载） */
+  content: var(--paste-hint, "⌘V 粘贴到这里");   /* F29：由 app.js 按 平台×语言 设值（--paste-hint，含引号） */
   position: absolute;
   top: 6px;
   right: 12px;
@@ -378,8 +377,8 @@ body {
   transform: translateY(0);
   transition: opacity 150ms ease-out, transform 150ms ease-out; /* 挂载进场（§W） */
 }
-body.win .zone::after {           /* v2.1：Windows 提示键名（同结构仅换文案） */
-  content: "Ctrl+V 粘贴到这里";
+body.win .zone::after {           /* v2.1→F29：文案改由 --paste-hint 承担，本块仅保留兼容标记 */
+  content: var(--paste-hint, "Ctrl+V 粘贴到这里");
 }
 .zone[data-p="0"] { --zone: var(--p0); }
 .zone[data-p="1"] { --zone: var(--p1); }

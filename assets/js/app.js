@@ -92,21 +92,118 @@ var capsuleCount = document.getElementById('capsuleCount');
 var toast = document.getElementById('toast');
 var undoBtn = document.getElementById('undoBtn');
 
-var EMPTY_TEXT = {
-  0: '双击此处，先记下最要紧的事',   // §J 空态文案规格四条，2026-10-11 英文化回归后恢复
-  1: '双击此处，安排重要的事',
-  2: '双击此处，记下急事先处理',
-  3: '双击此处，随手记点什么'
-};
+/* ============================================================
+   F29 i18n（v1.11，2026-10-11）：启动时探测系统语言，适配 zh-CN / zh-Hant / en。
+   跟随系统、不做运行中切换与偏好持久化（改系统语言后重启生效，PRD F29）；
+   探测失败/未知语言兜底 zh-CN（产品主场，同时保证自测确定性）。
+   仅供自测注入：I18N.setLocale('en') + applyStaticI18n()。
+   ============================================================ */
+var I18N = (function () {
+  var DICT = {
+    'zh-CN': {
+      zoneTitle: ['重要且紧急', '重要但不紧急', '不重要但紧急', '不重要且不紧急'],
+      empty: ['双击此处，先记下最要紧的事', '双击此处，安排重要的事', '双击此处，记下急事先处理', '双击此处，随手记点什么'],
+      footHint: '双击记一条',
+      placeholder: '记一条，回车保存',
+      toastDeleted: '已删除 ·', undo: '撤销',
+      act: { priority: '切换优先级', edit: '编辑', done: '标记完成', drop: '不干了', undo: '取消状态', del: '删除' },
+      groups: { created: 'Mark', done: '完成', dropped: '放弃' },
+      ariaCal: '日历回顾', ariaCollapse: '收起为胶囊', ariaClose: '退出应用', ariaCloseCal: '关闭日历',
+      ariaPrev: '上一月', ariaNext: '下一月',
+      calHint: '点一个日期，回看那天的记录', calEmpty: '这天没有留下记录',
+      capsuleTitle: '拖动移动位置', expand: '展开',
+      pasteMac: '⌘V 粘贴到这里', pasteWin: 'Ctrl+V 粘贴到这里',
+      calTitle: function (y, m) { return y + '年' + (m + 1) + '月'; }
+    },
+    'zh-Hant': {
+      zoneTitle: ['重要且緊急', '重要但不緊急', '不重要但緊急', '不重要且不緊急'],
+      empty: ['雙擊此處，先記下最要緊的事', '雙擊此處，安排重要的事', '雙擊此處，記下急事先處理', '雙擊此處，隨手記點什麼'],
+      footHint: '雙擊記一條',
+      placeholder: '記一條，Enter 儲存',
+      toastDeleted: '已刪除 ·', undo: '撤銷',
+      act: { priority: '切換優先級', edit: '編輯', done: '標記完成', drop: '不幹了', undo: '取消狀態', del: '刪除' },
+      groups: { created: 'Mark', done: '完成', dropped: '放棄' },
+      ariaCal: '日曆回顧', ariaCollapse: '收起為膠囊', ariaClose: '退出應用', ariaCloseCal: '關閉日曆',
+      ariaPrev: '上一月', ariaNext: '下一月',
+      calHint: '點一個日期，回看那天的記錄', calEmpty: '這天沒有留下記錄',
+      capsuleTitle: '拖動移動位置', expand: '展開',
+      pasteMac: '⌘V 貼上到這裡', pasteWin: 'Ctrl+V 貼上到這裡',
+      calTitle: function (y, m) { return y + '年' + (m + 1) + '月'; }
+    },
+    'en': {
+      zoneTitle: ['Urgent & Important', 'Important, Not Urgent', 'Urgent, Not Important', 'Not Urgent, Not Important'],
+      empty: ['Double-click to add the most urgent thing', 'Double-click to add something important', 'Double-click to add something urgent', 'Double-click to jot down anything'],
+      footHint: 'Double-click to add',
+      placeholder: 'Type a note — Enter to save',
+      toastDeleted: 'Deleted ·', undo: 'Undo',
+      act: { priority: 'Switch priority', edit: 'Edit', done: 'Mark done', drop: 'Drop it', undo: 'Clear status', del: 'Delete' },
+      groups: { created: 'Mark', done: 'Done', dropped: 'Dropped' },
+      ariaCal: 'Calendar', ariaCollapse: 'Collapse to capsule', ariaClose: 'Quit app', ariaCloseCal: 'Close calendar',
+      ariaPrev: 'Previous month', ariaNext: 'Next month',
+      calHint: 'Pick a day to revisit your notes', calEmpty: 'No notes on this day',
+      capsuleTitle: 'Drag to move', expand: 'Expand',
+      pasteMac: '⌘V to paste here', pasteWin: 'Ctrl+V to paste here',
+      calTitle: function (y, m) { return ['January','February','March','April','May','June','July','August','September','October','November','December'][m] + ' ' + y; }
+    }
+  };
+  var cur = (function () {
+    var l = '';
+    try {
+      // 仅在真实浏览器/renderer 环境信任 navigator.language（有 location）；
+      // Node 自测 shim 的 navigator.language 是宿主机 en-US，会破坏确定性 → 兜底 zh-CN
+      if (typeof location !== 'undefined' && location.href &&
+          typeof navigator !== 'undefined' && navigator.language)
+        l = String(navigator.language).toLowerCase();
+    } catch (e) {}
+    if (l.indexOf('zh') === 0) return /(tw|hk|mo|hant)/.test(l) ? 'zh-Hant' : 'zh-CN';
+    if (l.indexOf('en') === 0) return 'en';
+    return 'zh-CN';
+  })();
+  function t(k) { return DICT[cur][k]; }
+  function setLocale(l) { if (DICT[l]) cur = l; }   // 仅供自测注入，产品路径不调用
+  return { t: t, setLocale: setLocale, locale: function () { return cur; } };
+})();
+
+var EMPTY_TEXT = I18N.t('empty');
 var ZONE_NAMES = {
-  0: 'P0 重要且紧急',
-  1: 'P1 重要但不紧急',   // F19 v1.7：「且」→「但」，与 zone-title/zone-title-float 同源同步
-  2: 'P2 不重要但紧急',
-  3: 'P3 不重要且不紧急'
+  0: 'P0 ' + I18N.t('zoneTitle')[0],
+  1: 'P1 ' + I18N.t('zoneTitle')[1],   // F19 v1.7：「且」→「但」，与 zone-title/zone-title-float 同源同步
+  2: 'P2 ' + I18N.t('zoneTitle')[2],
+  3: 'P3 ' + I18N.t('zoneTitle')[3]
 };
 var ZONE_VARS = {
   0: 'var(--p0)', 1: 'var(--p1)', 2: 'var(--p2)', 3: 'var(--p3)'
 };
+
+/* F29：静态 DOM 文案按 locale 应用（defer 脚本执行时 DOM 已就绪）；
+   CSS 悬停粘贴提示走 --paste-hint（平台 ⌘/Ctrl × 语言三维组合由 JS 定值） */
+function applyStaticI18n() {
+  if (typeof document.querySelectorAll !== 'function') return;   // 自测 shim 无该能力：静态文案本就是中文源码，跳过
+  var isWin = false;
+  try { isWin = /win/i.test((typeof navigator !== 'undefined' && navigator.platform) || ''); } catch (e) {}
+  try {
+    var de = document.documentElement;
+    if (de && de.style && de.style.setProperty) de.style.setProperty('--paste-hint', '"' + (isWin ? I18N.t('pasteWin') : I18N.t('pasteMac')) + '"');
+  } catch (e) {}   // 自测 shim 无 documentElement 时跳过（真实 Electron 恒可用）
+  var zt = document.querySelectorAll('.zone-title');
+  var ztf = document.querySelectorAll('.zone-title-float');
+  var zf = document.querySelectorAll('.zone-foot-hint');
+  [0, 1, 2, 3].forEach(function (p) {
+    if (zt[p]) zt[p].textContent = I18N.t('zoneTitle')[p];
+    if (ztf[p]) ztf[p].textContent = I18N.t('zoneTitle')[p];
+    if (zf[p]) zf[p].textContent = I18N.t('footHint');
+  });
+  var q = function (s) { return document.querySelector(s); };
+  if (q('#quickInput')) q('#quickInput').placeholder = I18N.t('placeholder');
+  if (q('#calBtn')) q('#calBtn').setAttribute('aria-label', I18N.t('ariaCal'));
+  if (q('#collapseBtn')) q('#collapseBtn').setAttribute('aria-label', I18N.t('ariaCollapse'));
+  if (q('#closeBtn')) q('#closeBtn').setAttribute('aria-label', I18N.t('ariaClose'));
+  if (q('#capsule')) q('#capsule').title = I18N.t('capsuleTitle');
+  if (q('#expandBtn')) q('#expandBtn').title = I18N.t('expand');
+  if (q('#toast span')) q('#toast span').textContent = I18N.t('toastDeleted');
+  if (q('#undoBtn')) q('#undoBtn').textContent = I18N.t('undo');
+}
+applyStaticI18n();
 
 /* ============================================================
    渲染：按优先级分组，重建四个分区列表 + 角标 + 空态
@@ -161,7 +258,7 @@ function render() {
     if (grouped[p].length === 0) {
       var empty = document.createElement('div');
       empty.className = 'empty';
-      empty.textContent = EMPTY_TEXT[p];
+      empty.textContent = I18N.t('empty')[p];
       empty.appendChild(buildScribble());     // 马克笔划线（design §J）
       list.appendChild(empty);
     } else {
@@ -224,20 +321,20 @@ function buildNoteRow(n, p) {
   var actions = document.createElement('span');
   actions.className = 'note-actions';
 
-  actions.appendChild(actionBtn('priority', '切换优先级',
+  actions.appendChild(actionBtn('priority', I18N.t('act').priority,
     '<svg viewBox="0 0 16 16" width="14" height="14"><path d="M5 3v10M5 13l-2.2-2.2M5 13l2.2-2.2M11 13V3M11 3L8.8 5.2M11 3l2.2 2.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'));
-  actions.appendChild(actionBtn('edit', '编辑',
+  actions.appendChild(actionBtn('edit', I18N.t('act').edit,
     '<svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 13h2.2l7.1-7.1-2.2-2.2L3 10.8V13z" fill="currentColor"/><path d="M10.6 2.5l2.9 2.9.9-.9c.4-.4.4-1.05 0-1.45L13 2.1c-.4-.4-1.05-.4-1.45 0l-.95.95z" fill="currentColor"/></svg>'));
   if (n.status === 'open') {
-    actions.appendChild(actionBtn('done', '标记完成',
+    actions.appendChild(actionBtn('done', I18N.t('act').done,
       '<svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.2 8.6 6.6 11.8 12.8 4.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>', 'st'));
-    actions.appendChild(actionBtn('drop', '不干了',
+    actions.appendChild(actionBtn('drop', I18N.t('act').drop,
       '<svg viewBox="0 0 16 16" width="14" height="14"><circle cx="8" cy="8" r="5.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4.4 4.4 11.6 11.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>', 'st'));
   } else {
-    actions.appendChild(actionBtn('undo', '取消状态',
+    actions.appendChild(actionBtn('undo', I18N.t('act').undo,
       '<svg viewBox="0 0 16 16" width="14" height="14"><path d="M2.8 6.2 A5.4 5.4 0 1 1 2.7 9.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M2.8 2.6 v3.6 h3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>', 'st'));
   }
-  actions.appendChild(actionBtn('delete', '删除',
+  actions.appendChild(actionBtn('delete', I18N.t('act').del,
     '<svg viewBox="0 0 16 16" width="14" height="14"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'));
 
   row.appendChild(actions);
@@ -848,7 +945,7 @@ function openPopover(anchor, noteId) {
 
     var label = document.createElement('span');
     label.className = 'pop-label';
-    label.textContent = ZONE_NAMES[p];
+    label.textContent = 'P' + p + ' ' + I18N.t('zoneTitle')[p];
 
     row.appendChild(chip);
     row.appendChild(label);
@@ -1213,7 +1310,7 @@ function calNavBtn(dir) {
   b.type = 'button';
   b.className = 'cal-nav';
   b.dataset.dir = dir > 0 ? 'next' : 'prev';
-  b.setAttribute('aria-label', dir > 0 ? '下一月' : '上一月');
+  b.setAttribute('aria-label', dir > 0 ? I18N.t('ariaNext') : I18N.t('ariaPrev'));
   b.innerHTML = dir > 0
     ? '<svg viewBox="0 0 16 16" width="12" height="12"><path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
     : '<svg viewBox="0 0 16 16" width="12" height="12"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -1231,7 +1328,7 @@ function openCalendar() {
   var card = document.createElement('div');   // 卡片本体即根节点：锚定顶栏、无全屏遮罩（§Q）
   card.className = 'cal-card';
   card.setAttribute('role', 'dialog');
-  card.setAttribute('aria-label', '日历回顾');
+  card.setAttribute('aria-label', I18N.t('ariaCal'));
 
   var head = document.createElement('div');
   head.className = 'cal-head';
@@ -1244,7 +1341,7 @@ function openCalendar() {
   var closeBtn = document.createElement('button');   // 关闭方式④：卡片内 ✕（§T，head 行内 absolute right:8px）
   closeBtn.type = 'button';
   closeBtn.className = 'icon-btn cal-close';
-  closeBtn.setAttribute('aria-label', '关闭日历');
+  closeBtn.setAttribute('aria-label', I18N.t('ariaCloseCal'));
   closeBtn.innerHTML = '<svg viewBox="0 0 16 16" width="13" height="13"><path d="M4.5 4.5 11.5 11.5 M11.5 4.5 4.5 11.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
   head.appendChild(closeBtn);          // z-index:5 压过 .cal-head 同层内容（§T，P1 修复手法沿用）
 
@@ -1309,7 +1406,7 @@ function renderCalMonth(dir) {
   if (!grid || !title) return;
   var y = calState.y, m = calState.m;
 
-  title.textContent = y + '年' + (m + 1) + '月';   // 「2026年2月」格式（§N）
+  title.textContent = I18N.t('calTitle')(y, m);   // 「2026年2月」格式（§N，F29 分语言）
   title.style.transition = 'none';                   // 120ms fade 同步（§N）
   title.style.opacity = '0';
   void title.offsetWidth;
@@ -1438,7 +1535,7 @@ function renderCalDetail() {
   if (!calState.selKey) {
     var hint = document.createElement('div');      // 默认提示（§P）
     hint.className = 'cal-hint';
-    hint.textContent = '点一个日期，回看那天的记录';   // §P 默认提示原文
+    hint.textContent = I18N.t('calHint');   // §P 默认提示原文（F29 分语言）
     inner.appendChild(hint);
   } else {
     var evts = eventsForDay(calState.selKey);
@@ -1446,14 +1543,14 @@ function renderCalDetail() {
     if (total === 0) {
       var empty = document.createElement('div');   // 空态日期（§O）
       empty.className = 'cal-empty-day';
-      empty.textContent = '这天没有留下记录';   // §O 空态日期原文
+      empty.textContent = I18N.t('calEmpty');   // §O 空态日期原文（F29 分语言）
       empty.appendChild(buildScribble());          // 马克笔划线 opacity 0.5
       inner.appendChild(empty);
     } else {
       // 三组固定顺序：Mark → 完成 → 放弃；空组整组不渲染（§O）
-      if (evts.created.length) inner.appendChild(calGroup('Mark', evts.created, 'created'));
-      if (evts.done.length) inner.appendChild(calGroup('完成', evts.done, 'done'));
-      if (evts.dropped.length) inner.appendChild(calGroup('放弃', evts.dropped, 'dropped'));
+      if (evts.created.length) inner.appendChild(calGroup(I18N.t('groups').created, evts.created, 'created'));
+      if (evts.done.length) inner.appendChild(calGroup(I18N.t('groups').done, evts.done, 'done'));
+      if (evts.dropped.length) inner.appendChild(calGroup(I18N.t('groups').dropped, evts.dropped, 'dropped'));
     }
   }
   detail.appendChild(inner);
