@@ -1,0 +1,64 @@
+name: windows-release-verify
+
+# 验证「已发布的 Release exe」：下载 → 静默安装 → 启动 → 截屏
+# 与 windows-smoke（源码冒烟+从源码打包）互补，覆盖用户实际下载到的产物
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag，如 v1.0.3'
+        required: true
+        default: 'v1.0.3'
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - name: Download release exe
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.event.inputs.tag }}"
+          gh release download $tag --repo ${{ github.repository }} --pattern "*.exe" --dir dist
+          Get-ChildItem dist | ForEach-Object { Write-Host "downloaded: $($_.Name) $($_.Length) bytes" }
+          $exe = Get-ChildItem dist -Filter "*Setup*.exe" | Select-Object -First 1
+          if (-not $exe) { throw "No Setup exe found in release $tag" }
+          "INSTALLER=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Silent install (NSIS /S)
+        shell: pwsh
+        run: |
+          Start-Process $env:INSTALLER -ArgumentList "/S" -Wait
+          $candidates = @(
+            "$env:LOCALAPPDATA\Programs\Mark it!\Mark it!.exe",
+            "$env:LOCALAPPDATA\Programs\markit\Mark it!.exe"
+          )
+          $installed = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $installed) {
+            $installed = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter "Mark it!.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          }
+          if (-not $installed) { throw "Installed exe not found under LOCALAPPDATA\Programs" }
+          Write-Host "installed at: $installed"
+          "INSTALLED_PATH=$installed" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Launch installed app + screenshot
+        shell: pwsh
+        run: |
+          Start-Process $env:INSTALLED_PATH
+          Start-Sleep -Seconds 12
+          Add-Type -AssemblyName System.Windows.Forms
+          Add-Type -AssemblyName System.Drawing
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          $g = [System.Drawing.Graphics]::FromImage($bmp)
+          $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $bmp.Save("win-release-screenshot.png")
+          $g.Dispose(); $bmp.Dispose()
+          Get-Process | Where-Object { $_.Name -like "*Mark*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+
+      - name: Upload screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-verify
+          path: win-release-screenshot.png
