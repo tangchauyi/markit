@@ -180,7 +180,18 @@ function createWindow() {
 
 /* ---------- 冒烟断言：注入钩子 / persist / setCollapsed / 尺寸联动 ---------- */
 function runSmoke() {
-  const fail = (msg) => { console.log('SMOKE FAIL: ' + msg); app.exit(1); throw new Error('SMOKE_ABORT'); };
+  /* v1.0.2 CI 教训：did-finish-load 不触发 / probe 内 fetch 永久 pending 时，
+     断言链不会执行也不会 reject → 进程永挂。全局看门狗 90s 强制退出并报败 */
+  let watchdog = setTimeout(() => {
+    console.log('SMOKE FAIL: watchdog 90s 超时（did-finish-load 未触发或断言链挂起）');
+    app.exit(3);
+  }, 90000);
+  const fail = (msg) => {
+    console.log('SMOKE FAIL: ' + msg);
+    if (watchdog) clearTimeout(watchdog);
+    app.exit(1);
+    throw new Error('SMOKE_ABORT');
+  };
   win.webContents.once('did-finish-load', () => setTimeout(() => {
     const probe = `(function () {
       var injected = Array.isArray(window.__MARKIT_NOTES__) && window.__MARKIT_NOTES__.length === 1
@@ -231,6 +242,7 @@ function runSmoke() {
       console.log('SMOKE expanded: ' + e[0] + 'x' + e[1] + ' pass=' + (e[0] === 360 && e[1] === 640));
       if (e[0] !== 360 || e[1] !== 640) return fail('展开尺寸不符');
       console.log('SMOKE DONE ALL PASS');
+      clearTimeout(watchdog);
       app.exit(0);
     }).catch((e) => fail(e.message));
   }, 600));
