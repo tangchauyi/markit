@@ -155,13 +155,9 @@ body {
 }
 .brand-mark {
   flex: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 5px;
-  background: var(--grad-brand);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 20px;
+  height: 20px;
+  display: block;               /* F31b：真图标 PNG（自带圆角与透明边距），无需 CSS 渐变/圆角 */
 }
 
 /* ---------- 固定按钮（F11：纯图钉图标 + hover tooltip，design.md v1.2 增补 A-F） ---------- */
@@ -1056,86 +1052,130 @@ border-left-color: var(--bar-dropped);       /* v1.8a：放弃=固定灰，彻�
   to   { opacity: 0; transform: translateY(-6px) scale(0.98); }
 }
 
-/* F30 关于卡片（v1.12）：复用 cal-card 视觉体系（模糊底/描边/阴影/进场动画） */
-.about-card {
+/* F31 品牌提示框（v1.15）：双击左上角 logo 弹出，锚定 logo 下方；
+   复用 cal-card 视觉体系（模糊底/描边/阴影/进场动画），宽 240px 左对齐 */
+.brand-menu {
   position: absolute;
-  top: 48px;                     /* 与日历卡同锚：贴齐顶栏底缘 */
-  right: 12px;
+  top: 44px;                     /* 贴齐顶栏底缘（logo 高度内） */
+  left: 10px;
   z-index: 20;
-  width: 288px;
+  width: 240px;
   border-radius: 12px;
-  padding: 12px 14px;
+  padding: 8px;
   background: var(--cal-card-bg);
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
   backdrop-filter: blur(24px) saturate(1.4);
   border: 1px solid var(--stroke);
   box-shadow: var(--cal-shadow);
-  transform-origin: 100% 0;
+  transform-origin: 0 0;
   animation: cal-in 160ms ease-out;
 }
-.about-card.closing { animation: cal-out 120ms ease-in forwards; }
-.about-head {
+.bm-head {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin-bottom: 8px;
+  padding: 4px 8px 10px;
+  border-bottom: 1px solid var(--stroke);
+  margin-bottom: 6px;
 }
-.about-name { font-weight: 700; font-size: 14px; color: var(--text-primary); }
-.about-ver  { font-size: 12px; color: var(--text-secondary); }
-.about-close {
-  margin-left: auto;
-  width: 24px; height: 24px;
-  border-radius: 6px;
-  font-size: 12px;
-  line-height: 1;
-  display: flex; align-items: center; justify-content: center;
-  align-self: flex-start;        /* ✕ 对齐首行而非 baseline */
+.bm-name { font-weight: 700; font-size: 14px; color: var(--text-primary); }
+.bm-ver  { font-size: 12px; color: var(--text-secondary); }
+.bm-item {
+  display: block;
+  width: 100%;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-primary);
+  padding: 8px 8px;
+  border-radius: 8px;
+  cursor: pointer;
 }
-.about-privacy {
-  margin: 0 0 10px;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--text-secondary);
-}
-.about-row {
+.bm-item:hover { background: var(--hover); }
+.bm-upd-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 6px;
+  padding: 0 0 2px;
 }
-.about-toggle-label {
+.bm-upd-row .bm-item { flex: none; }
+.bm-status {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.bm-status.ok  { color: #34a853; }
+.bm-status.new { color: #e2742f; font-weight: 600; }
+.bm-status.warn{ color: #d0603c; }
+.bm-download {
+  flex: none;
+  display: none;                 /* 仅发现新版本时出现 */
+  border: none;
+  border-radius: 8px;
+  background: var(--focus);
+  color: #fff;
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.bm-download:hover { filter: brightness(1.08); }
+
+/* F31 关于小页（v1.15）：同窗覆盖层（markit://about 语义），独立小页承载
+   产品介绍与隐私说明；不提供任何 opt-out（产品决策 2026-10-11） */
+.about-page {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(24px) saturate(1.4);
+  animation: cal-in 160ms ease-out;
+}
+.ap-head {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--stroke);
+}
+.ap-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.ap-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 18px;
+}
+.ap-logo {
+  width: 48px; height: 48px;    /* F31b：真图标 PNG（icns 导出），自带圆角与阴影高光 */
+  filter: drop-shadow(0 2px 6px rgba(255, 120, 80, 0.3));
+}
+.ap-logo img { display: block; width: 48px; height: 48px; }
+.ap-name { margin-top: 12px; font-size: 20px; font-weight: 700; color: var(--text-primary); }
+.ap-ver  { margin-top: 2px; font-size: 12px; color: var(--text-secondary); }
+.ap-intro {
+  margin: 16px 0 0;
   font-size: 13px;
+  line-height: 1.65;
   color: var(--text-primary);
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
 }
-.about-switch {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 34px; height: 20px;
+.ap-privacy {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+.ap-privbox {
+  margin-top: 14px;
+  padding: 10px 12px;
   border-radius: 10px;
-  background: var(--hover);
+  background: var(--cal-card-bg);
   border: 1px solid var(--stroke);
-  position: relative;
-  cursor: pointer;
-  transition: background 140ms ease;
-  margin: 0;
-  flex: none;
 }
-.about-switch::after {
-  content: '';
-  position: absolute;
-  top: 2px; left: 2px;
-  width: 14px; height: 14px;
-  border-radius: 50%;
-  background: var(--text-primary);
-  transition: transform 140ms ease;
-}
-.about-switch:checked { background: var(--focus); border-color: var(--focus); }
-.about-switch:checked::after { transform: translateX(14px); background: #fff; }
+.ap-privbox-title { font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+.ap-privbox div { font-size: 11px; line-height: 1.7; color: var(--text-secondary); }
 /* 卡片内 ✕ 关闭钮（§T）：head 行内 absolute right:8px、22×22、垂直居中；
    z-index:5 沿用 P1 修复手法压过 .cal-head 同层内容，防热区被吞 */
 .cal-close {

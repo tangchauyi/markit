@@ -4,9 +4,10 @@
    无边框常驻小窗（360×640 / 收起胶囊 128×40），置顶为可选（图钉按钮控制），
    笔记文件持久化 + 窗口位置记忆。
    ============================================================ */
-const { app, BrowserWindow, ipcMain, protocol, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, screen, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 
 const IS_MAC = process.platform === 'darwin';
 const IS_WIN = process.platform === 'win32';
@@ -99,7 +100,12 @@ function registerAppScheme() {
     if (url.pathname !== '/index.html' && url.pathname !== '/') {
       /* v2.0 单文件拆分：回落到磁盘静态资源（assets/**）。
          白名单扩展名 + 归一化后必须落在 __dirname 内，防目录逃逸；行为零变更（原为 404 的仅 assets 路径）。 */
-      const MIME = { '.css': 'text/css; charset=utf-8', '.js': 'application/javascript; charset=utf-8' };
+      const MIME = {
+        '.css': 'text/css; charset=utf-8',
+        '.js': 'application/javascript; charset=utf-8',
+        '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
+        '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp'
+      };
       const rel0 = decodeURIComponent(url.pathname).replace(/^\/+/, '');
       /* URL pathname 恒为正斜杠，Windows path.sep 为反斜杠——
          归一成 / 再做前缀判断（v1.0.2 修复 Windows 下 assets 全部 404） */
@@ -292,6 +298,45 @@ ipcMain.on('markit:set-collapsed', (_event, value) => {
   win.setSize(size.width, size.height); // 左上角锚定，收起后顶栏原位变胶囊
   win.setResizable(false);
   saveWindowState();
+});
+
+/* ---------- 检查更新下载（F31 v1.15）：GitHub release 资产 → 临时目录 → 打开安装器 ----------
+   renderer 侧 fetch 下载会被 github 资产跨域拦住，所以走主进程。
+   安全约束：仅接受 https 且主机在 github 白名单内；文件名仅取 basename 落临时目录。 */
+function downloadFileFollowRedirects(url, dest, redirects = 5) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, { headers: { 'User-Agent': 'markit-app' } }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location && redirects > 0) {
+        res.resume();
+        downloadFileFollowRedirects(new URL(res.headers.location, url).href, dest, redirects - 1).then(resolve, reject);
+        return;
+      }
+      if (res.statusCode !== 200) { res.resume(); reject(new Error('HTTP ' + res.statusCode)); return; }
+      const file = fs.createWriteStream(dest);
+      res.pipe(file);
+      file.on('finish', () => file.close(() => resolve(dest)));
+      file.on('error', reject);
+    });
+    req.on('error', reject);
+    req.setTimeout(60000, () => req.destroy(new Error('timeout')));
+  });
+}
+
+ipcMain.handle('markit:download-update', async (_event, url, name) => {
+  try {
+    const u = new URL(String(url));
+    // 白名单：仅 github.com 及其资产/跳转域（objects.githubusercontent.com 等）
+    if (u.protocol !== 'https:' || !/(^|\.)github\.com$|githubusercontent\.com$/.test(u.hostname)) {
+      throw new Error('host not allowed');
+    }
+    const safeName = path.basename(String(name || 'update')).replace(/[^\w.\- !()]+/g, '_');
+    const dest = path.join(require('os').tmpdir(), 'markit-update-' + safeName);
+    await downloadFileFollowRedirects(u.href, dest);
+    await shell.openPath(dest);   // dmg 挂载 / exe 触发 NSIS，安装引导交给系统
+    return { ok: true, path: dest };
+  } catch (e) {
+    return { ok: false, error: (e && e.message) || 'download failed' };
+  }
 });
 
 /* ---------- 生命周期 ---------- */

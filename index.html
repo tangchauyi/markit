@@ -12,10 +12,10 @@
   <!-- ================= 展开态看板 ================= -->
   <div class="board">
 
-    <!-- 顶栏：产品名（旁渐变✓小方块 design §K）+ 日历 + 固定 + 收起 + 关闭（右区顺序 §X） -->
+    <!-- 顶栏：产品名（旁渐变✓小方块 design §K，双击弹提示框 F31）+ 日历 + 固定 + 收起 + 关闭（右区顺序 §X） -->
     <header class="topbar">
-      <div class="brand-group">
-        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 16 16" width="10" height="10"><path d="M3.2 8.6 6.6 11.8 12.8 4.6" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <div class="brand-group" id="brandBtn" role="button" tabindex="0" aria-label="关于与检查更新">
+        <img class="brand-mark" src="assets/icons/app-icon@2x.png" alt="" width="20" height="20" aria-hidden="true">
         <div class="app-name">Mark it!</div>
       </div>
       <div class="spacer"></div>
@@ -28,11 +28,6 @@
       <button id="pinBtn" class="icon-btn pin-btn" aria-pressed="false">
         <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4.375 1.5h7.25a.875.875 0 0 1 .875.875v.875a.875.875 0 0 1-.875.875h-7.25a.875.875 0 0 1-.875-.875v-.875a.875.875 0 0 1 .875-.875zM5.9 3.25h4.2l-1.3 5.95h-1.6zM7.55 9.2h.9L8 14.75z"/></svg>
         <span class="pin-tip" aria-hidden="true"><span class="tip-off">点击置顶看板</span><span class="tip-on">已置顶 · 点击取消</span></span>
-      </button>
-      <!-- 关于入口（F30 v1.12）：版本/隐私说明/匿名统计开关 -->
-      <button id="aboutBtn" class="icon-btn about-btn" aria-label="关于 Mark it!" aria-expanded="false">
-        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 7.4v3.3 M8 5.3h.01" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        <span class="pin-tip" aria-hidden="true">关于 Mark it!</span>
       </button>
       <!-- 收起按钮（F20 v1.7）：移除原生 title，hover/focus 浮现 .pin-tip 自绘提示（§Z） -->
       <button id="collapseBtn" class="icon-btn collapse-btn" aria-label="收起为胶囊">

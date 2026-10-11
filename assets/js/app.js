@@ -113,9 +113,15 @@ var I18N = (function () {
       calHint: '点一个日期，回看那天的记录', calEmpty: '这天没有留下记录',
       capsuleTitle: '拖动移动位置', expand: '展开',
       pasteMac: '⌘V 粘贴到这里', pasteWin: 'Ctrl+V 粘贴到这里',
-      ariaAbout: '关于 Mark it!',
-      aboutToggle: '匿名使用统计',
-      aboutPrivacy: '我们仅收集匿名编号、版本与语言信息，用于产品迭代决策，不涉及任何笔记内容。你可随时关闭上报。',
+      /* F31 v1.15：双击 logo 提示框 + 关于小页 + 检查更新（不再提供 opt-out，产品决策 2026-10-11） */
+      menuAbout: '关于 Mark it!', menuUpdate: '检查更新',
+      updChecking: '检查中…', updLatest: '已是最新', updNew: '发现新版本',
+      updDownload: '下载安装', updDownloading: '下载中…',
+      updFailed: '检查失败，稍后重试', updUnset: '更新源未配置',
+      aboutPageTitle: '关于 Mark it!', aboutBack: '返回看板',
+      aboutIntro: 'Mark it! 是为打工人做的桌面便签看板——多线程工作里，给每件小事一个放下的地方。',
+      aboutPrivacy: '为了更好地迭代产品，我们会收集匿名编号、版本、语言与使用行为，不收集任何笔记内容。你的笔记信息仅存储到本地。',
+      privBoxTitle: '隐私边界', privLocal: '笔记内容 · 仅本地存储，永不上传', privStats: '统计数据 · 匿名编号 / 版本 / 语言 / 行为',
       calTitle: function (y, m) { return y + '年' + (m + 1) + '月'; }
     },
     'zh-Hant': {
@@ -131,9 +137,15 @@ var I18N = (function () {
       calHint: '點一個日期，回看那天的記錄', calEmpty: '這天沒有留下記錄',
       capsuleTitle: '拖動移動位置', expand: '展開',
       pasteMac: '⌘V 貼上到這裡', pasteWin: 'Ctrl+V 貼上到這裡',
-      ariaAbout: '關於 Mark it!',
-      aboutToggle: '匿名使用統計',
-      aboutPrivacy: '我們僅收集匿名編號、版本與語言資訊，用於產品迭代決策，不涉及任何筆記內容。你可隨時關閉上報。',
+      /* F31 v1.15：提示框與關於小頁（不提供 opt-out） */
+      menuAbout: '關於 Mark it!', menuUpdate: '檢查更新',
+      updChecking: '檢查中…', updLatest: '已是最新', updNew: '發現新版本',
+      updDownload: '下載安裝', updDownloading: '下載中…',
+      updFailed: '檢查失敗，稍後重試', updUnset: '更新源未配置',
+      aboutPageTitle: '關於 Mark it!', aboutBack: '返回看板',
+      aboutIntro: 'Mark it! 是為打工人做的桌面便籤看板——多工並行的工作裡，給每件小事一個放下的地方。',
+      aboutPrivacy: '為了更好地迭代產品，我們會收集匿名編號、版本、語言與使用行為，不收集任何筆記內容。你的筆記資訊僅儲存到本地。',
+      privBoxTitle: '隱私邊界', privLocal: '筆記內容 · 僅本地儲存，永不上傳', privStats: '統計數據 · 匿名編號 / 版本 / 語言 / 行為',
       calTitle: function (y, m) { return y + '年' + (m + 1) + '月'; }
     },
     'en': {
@@ -149,9 +161,15 @@ var I18N = (function () {
       calHint: 'Pick a day to revisit your notes', calEmpty: 'No notes on this day',
       capsuleTitle: 'Drag to move', expand: 'Expand',
       pasteMac: '⌘V to paste here', pasteWin: 'Ctrl+V to paste here',
-      ariaAbout: 'About Mark it!',
-      aboutToggle: 'Anonymous usage stats',
-      aboutPrivacy: 'We collect only an anonymous ID, app version and language, used solely for product improvement decisions — never your notes. You can turn off reporting at any time.',
+      /* F31 v1.15: brand menu + about page + update check (no opt-out by design) */
+      menuAbout: 'About Mark it!', menuUpdate: 'Check for updates',
+      updChecking: 'Checking…', updLatest: 'Up to date', updNew: 'New version',
+      updDownload: 'Download & install', updDownloading: 'Downloading…',
+      updFailed: 'Check failed — try again later', updUnset: 'Update source not set',
+      aboutPageTitle: 'About Mark it!', aboutBack: 'Back to board',
+      aboutIntro: 'Mark it! is a desktop sticky-note board for busy workers — in the middle of juggling tasks, a place to put down every little thing.',
+      aboutPrivacy: 'To make the product better, we collect an anonymous ID, version, language and usage behavior. We never collect your notes — everything you mark stays on this device.',
+      privBoxTitle: 'Privacy at a glance', privLocal: 'Notes · stored locally only, never uploaded', privStats: 'Telemetry · anonymous ID / version / language / behavior',
       calTitle: function (y, m) { return ['January','February','March','April','May','June','July','August','September','October','November','December'][m] + ' ' + y; }
     }
   };
@@ -205,7 +223,7 @@ function applyStaticI18n() {
   var q = function (s) { return document.querySelector(s); };
   if (q('#quickInput')) q('#quickInput').placeholder = I18N.t('placeholder');
   if (q('#calBtn')) q('#calBtn').setAttribute('aria-label', I18N.t('ariaCal'));
-  if (q('#aboutBtn')) q('#aboutBtn').setAttribute('aria-label', I18N.t('ariaAbout'));
+  if (q('#brandBtn')) q('#brandBtn').setAttribute('aria-label', I18N.t('menuAbout') + ' / ' + I18N.t('menuUpdate'));
   if (q('#collapseBtn')) q('#collapseBtn').setAttribute('aria-label', I18N.t('ariaCollapse'));
   if (q('#closeBtn')) q('#closeBtn').setAttribute('aria-label', I18N.t('ariaClose'));
   if (q('#capsule')) q('#capsule').title = I18N.t('capsuleTitle');
@@ -216,20 +234,16 @@ function applyStaticI18n() {
 applyStaticI18n();
 
 /* ============================================================
-   F30 匿名启动统计（v1.12，PRD 第 14 章）：PostHog 原生 fetch 上报，零 SDK 依赖。
-   - 仅上报随机 ID / 版本 / 平台 / 语言，绝不包含笔记内容（诚实人设硬约束）；
-   - opt-out：关于卡片开关写 localStorage['analytics_opt_out']='1'，启动时检查；
+   F30 匿名启动统计（v1.12，PRD 第 14 章；v1.15 起不再提供 opt-out，产品决策 2026-10-11）：
+   PostHog 原生 fetch 上报，零 SDK 依赖。
+   - 仅上报随机 ID / 版本 / 平台 / 语言 / 匿名使用行为，绝不包含笔记内容；
    - PH_KEY 为空 = 未接入采集端，整体 no-op 不发任何请求；
    - fire-and-forget：失败静默不重试不排队，离线丢事件可接受。
    ============================================================ */
-var ANALYTICS_OPT_KEY = 'analytics_opt_out';
 var ANALYTICS_ID_KEY = 'anon_id';
 var PH_KEY = 'phc_tJN9yKkuZ6uEKzZVyuFwHz2hpGQbHVJ5eHsmo9g7AZD4';   // PostHog 项目 Key（公开凭据，可嵌入客户端）
 var PH_HOST = 'https://us.i.posthog.com';
 
-function analyticsEnabled() {
-  try { return localStorage.getItem(ANALYTICS_OPT_KEY) !== '1'; } catch (e) { return false; }
-}
 function anonId() {
   try {
     var v = localStorage.getItem(ANALYTICS_ID_KEY);
@@ -241,7 +255,7 @@ function anonId() {
   } catch (e) { return null; }
 }
 function reportLaunch() {
-  if (!PH_KEY || !analyticsEnabled()) return;   // 未接入 / 用户拒绝 / 存储异常 → 不上报
+  if (!PH_KEY) return;   // 未接入采集端 → 不上报
   try {
     // 自测 shim（有 location 才算真实 renderer）与老环境不上报
     if (typeof fetch !== 'function' || typeof location === 'undefined' || !location.href) return;
@@ -276,7 +290,7 @@ function localDayKey() {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 function reportDailyPing() {
-  if (!PH_KEY || !analyticsEnabled()) return;
+  if (!PH_KEY) return;
   if (typeof fetch !== 'function' || typeof location === 'undefined' || !location.href) return;
   var today;
   try { today = localStorage.getItem(PING_DAY_KEY); } catch (e) { today = null; }
@@ -1676,75 +1690,181 @@ document.addEventListener('keydown', function (e) {  // 关闭方式②：Esc
 });
 
 /* ============================================================
-   F30 关于卡片（v1.12）：版本 / 隐私说明 / 匿名统计开关（opt-out）。
-   交互复用日历卡模式：锚定下拉、点外关闭、Esc、卡内 ✕；与日历互斥
-   （pointerdown 先关闭日历 → click 再开关于，天然不叠层）。
+   F31 品牌提示框 + 关于小页 + 检查更新（v1.15，2026-10-11）：
+   - 顶栏移除「关于」按钮；双击左上角 logo 胶囊弹出提示框（关于 / 检查更新）；
+     单击无动作故无双击冲突；点外/Esc/再双击收起，进场沿用 cal-in 动画；
+   - 「关于 Mark it!」跳转独立小页（markit:// 同窗覆盖层），承载产品介绍
+     与隐私说明；应用内任何位置均不提供关闭收集的开关（产品决策）；
+   - 「检查更新」直连 GitHub Releases latest，行内三态；新版则经主进程
+     下载对应平台安装包（IPC markit:download-update）并自动打开安装器。
    ============================================================ */
-var aboutBtn = document.getElementById('aboutBtn');
-var aboutState = { open: false, el: null };
+var brandEl = document.getElementById('brandBtn');
+var bmenuState = { open: false, el: null };
+var UPD = { checking: false, latest: null, asset: null };   // 行内状态（菜单重建即重置，可接受）
 
-function closeAbout() {
-  if (!aboutState.open || !aboutState.el) return;
-  var el = aboutState.el;
-  aboutState.open = false; aboutState.el = null;
-  try { el.remove(); } catch (e) {}   // 自测 shim 无 remove：真实 DOM 恒可用
-  aboutBtn.classList.remove('active');
-  aboutBtn.setAttribute('aria-expanded', 'false');
+var UPDATE_REPO = '';   // GitHub 仓库 'owner/repo'；留空 = 更新源未配置（发布时填入）
+
+function appVersion() {
+  return (typeof window.__MARKIT_VERSION__ === 'string' && window.__MARKIT_VERSION__) || 'dev';
+}
+function semverGt(a, b) {   // a > b ?（仅数字段比较，非数字段按 0 处理）
+  var pa = String(a).replace(/^v/, '').split('.'), pb = String(b).replace(/^v/, '').split('.');
+  for (var i = 0; i < 3; i++) {
+    var na = parseInt(pa[i], 10) || 0, nb = parseInt(pb[i], 10) || 0;
+    if (na !== nb) return na > nb;
+  }
+  return false;
 }
 
-function openAbout() {
-  if (aboutState.open) return;
-  var card = document.createElement('div');
-  card.className = 'about-card cal-in';
-  var head = document.createElement('div'); head.className = 'about-head';
-  var name = document.createElement('span'); name.className = 'about-name';
-  name.textContent = 'Mark it!';                       // 品牌名三语不译（F29）
-  var ver = document.createElement('span'); ver.className = 'about-ver';
-  ver.textContent = 'v' + ((typeof window.__MARKIT_VERSION__ === 'string' && window.__MARKIT_VERSION__) || 'dev');
-  var x = document.createElement('button'); x.className = 'about-close icon-btn'; x.type = 'button';
-  x.textContent = '✕'; x.setAttribute('aria-label', I18N.t('ariaCloseCal'));
-  head.appendChild(name); head.appendChild(ver); head.appendChild(x);
-  var privacy = document.createElement('p'); privacy.className = 'about-privacy';
-  privacy.textContent = I18N.t('aboutPrivacy');
-  var row = document.createElement('div'); row.className = 'about-row';
-  var lb = document.createElement('label'); lb.className = 'about-toggle-label';
-  lb.textContent = I18N.t('aboutToggle');
-  var sw = document.createElement('input'); sw.type = 'checkbox'; sw.className = 'about-switch';
-  sw.checked = analyticsEnabled();
-  sw.addEventListener('change', function () {
-    try {
-      if (sw.checked) localStorage.removeItem(ANALYTICS_OPT_KEY);
-      else localStorage.setItem(ANALYTICS_OPT_KEY, '1');
-    } catch (e) { /* 存储异常：开关仅视觉态 */ }
-  });
-  lb.appendChild(sw);
-  row.appendChild(lb);
-  card.appendChild(head); card.appendChild(privacy); card.appendChild(row);
-  document.getElementById('app').appendChild(card);
-  aboutState.open = true; aboutState.el = card;
-  aboutBtn.classList.add('active');
-  aboutBtn.setAttribute('aria-expanded', 'true');
+function closeBrandMenu() {
+  if (!bmenuState.open || !bmenuState.el) return;
+  var el = bmenuState.el;
+  bmenuState.open = false; bmenuState.el = null;
+  try { el.remove(); } catch (e) {}
 }
 
-if (aboutBtn) {   // 自测 shim 无此元素：整块跳过
-  aboutBtn.addEventListener('click', function () {
-    if (aboutState.open) closeAbout(); else openAbout();
+function setUpdStatus(text, cls) {   // 更新行右侧状态文字（menu 未打开时安全跳过）
+  if (!bmenuState.el) return;
+  var st = bmenuState.el.querySelector('.bm-status');
+  if (!st) return;
+  st.textContent = text;
+  st.className = 'bm-status' + (cls ? ' ' + cls : '');
+}
+
+function checkUpdate() {   // F31：行内三态；手动触发，不后台轮询
+  if (UPD.checking) return;
+  if (!UPDATE_REPO || UPDATE_REPO.indexOf('/') < 0) { setUpdStatus(I18N.t('updUnset'), 'warn'); return; }
+  UPD.checking = true;
+  setUpdStatus(I18N.t('updChecking'));
+  try {
+    if (typeof fetch !== 'function' || typeof location === 'undefined' || !location.href) {
+      UPD.checking = false; return;   // 自测 shim：不发网络请求
+    }
+    fetch('https://api.github.com/repos/' + UPDATE_REPO + '/releases/latest', {
+      headers: { 'Accept': 'application/vnd.github+json' }
+    }).then(function (r) { return r.ok ? r.json() : null; }).then(function (rel) {
+      UPD.checking = false;
+      if (!rel || !rel.tag_name) { setUpdStatus(I18N.t('updFailed'), 'warn'); return; }
+      var assets = (rel.assets || []);
+      var isMac = !IS_WIN;
+      var asset = null;
+      for (var i = 0; i < assets.length; i++) {
+        var n = String(assets[i].name || '');
+        if (isMac ? /arm64\.dmg$/i.test(n) : /setup.*\.exe$/i.test(n)) { asset = assets[i]; break; }
+      }
+      if (semverGt(rel.tag_name, appVersion()) && asset) {
+        UPD.latest = rel.tag_name; UPD.asset = asset;
+        setUpdStatus(I18N.t('updNew') + ' ' + rel.tag_name.replace(/^v/, ''), 'new');
+        var dn = bmenuState.el && bmenuState.el.querySelector('.bm-download');
+        if (dn) dn.style.display = '';
+      } else {
+        setUpdStatus(I18N.t('updLatest'), 'ok');
+      }
+    }).catch(function () { UPD.checking = false; setUpdStatus(I18N.t('updFailed'), 'warn'); });
+  } catch (e) { UPD.checking = false; }
+}
+
+function downloadUpdate() {   // 经主进程下载（github 下载链有跨域限制），完成后自动打开安装器
+  if (!UPD.asset || typeof markitHost === 'undefined' || !markitHost.downloadUpdate) return;
+  setUpdStatus(I18N.t('updDownloading'));
+  markitHost.downloadUpdate(UPD.asset.browser_download_url, UPD.asset.name).then(function (res) {
+    if (res && res.ok) setUpdStatus(I18N.t('updLatest'), 'ok');
+    else setUpdStatus(I18N.t('updFailed'), 'warn');
+  }).catch(function () { setUpdStatus(I18N.t('updFailed'), 'warn'); });
+}
+
+function openBrandMenu() {
+  if (bmenuState.open) return;
+  closeCalendar();                     // 与日历互斥（同 F30 模式）
+  var menu = document.createElement('div');
+  menu.className = 'brand-menu cal-in';
+  var head = document.createElement('div'); head.className = 'bm-head';
+  var name = document.createElement('span'); name.className = 'bm-name';
+  name.textContent = 'Mark it!';       // 品牌名三语不译（F29）
+  var ver = document.createElement('span'); ver.className = 'bm-ver';
+  ver.textContent = 'v' + appVersion();
+  head.appendChild(name); head.appendChild(ver);
+  var itAbout = document.createElement('button'); itAbout.type = 'button';
+  itAbout.className = 'bm-item'; itAbout.textContent = I18N.t('menuAbout');
+  var itUpd = document.createElement('button'); itUpd.type = 'button';
+  itUpd.className = 'bm-item bm-item-upd'; itUpd.textContent = I18N.t('menuUpdate');
+  var row = document.createElement('div'); row.className = 'bm-upd-row';
+  row.appendChild(itUpd);
+  var st = document.createElement('span'); st.className = 'bm-status'; st.textContent = '';
+  row.appendChild(st);
+  var dn = document.createElement('button'); dn.type = 'button';
+  dn.className = 'bm-download'; dn.textContent = I18N.t('updDownload');
+  dn.style.display = 'none';
+  dn.addEventListener('click', downloadUpdate);
+  row.appendChild(dn);
+  menu.appendChild(head); menu.appendChild(itAbout); menu.appendChild(row);
+  document.getElementById('app').appendChild(menu);
+  bmenuState.open = true; bmenuState.el = menu;
+  itAbout.addEventListener('click', function () { closeBrandMenu(); openAboutPage(); });
+  itUpd.addEventListener('click', checkUpdate);
+}
+
+var aboutPageEl = null;
+function closeAboutPage() {
+  if (!aboutPageEl) return;
+  try { aboutPageEl.remove(); } catch (e) {}
+  aboutPageEl = null;
+}
+function openAboutPage() {   // F31：独立小页（同窗覆盖层），Esc/✕ 返回看板
+  closeAboutPage();
+  var page = document.createElement('div');
+  page.className = 'about-page cal-in';
+  var head = document.createElement('div'); head.className = 'ap-head';
+  var back = document.createElement('button'); back.type = 'button';
+  back.className = 'ap-back icon-btn'; back.textContent = '\u2190';
+  back.setAttribute('aria-label', I18N.t('aboutBack'));
+  back.addEventListener('click', closeAboutPage);
+  var ttl = document.createElement('span'); ttl.className = 'ap-title';
+  ttl.textContent = I18N.t('aboutPageTitle');
+  head.appendChild(back); head.appendChild(ttl);
+  var body = document.createElement('div'); body.className = 'ap-body';
+  var logo = document.createElement('div'); logo.className = 'ap-logo';
+  logo.innerHTML = '<img src="assets/icons/app-icon.png" width="48" height="48" alt="">';
+  var nm = document.createElement('div'); nm.className = 'ap-name'; nm.textContent = 'Mark it!';
+  var vv = document.createElement('div'); vv.className = 'ap-ver'; vv.textContent = 'v' + appVersion() + ' \u00b7 ' + (IS_WIN ? 'Windows' : 'macOS');
+  var intro = document.createElement('p'); intro.className = 'ap-intro';
+  intro.textContent = I18N.t('aboutIntro');
+  var priv = document.createElement('p'); priv.className = 'ap-privacy';
+  priv.textContent = I18N.t('aboutPrivacy');
+  var box = document.createElement('div'); box.className = 'ap-privbox';
+  var bt = document.createElement('div'); bt.className = 'ap-privbox-title'; bt.textContent = I18N.t('privBoxTitle');
+  var l1 = document.createElement('div'); l1.textContent = I18N.t('privLocal');
+  var l2 = document.createElement('div'); l2.textContent = I18N.t('privStats');
+  box.appendChild(bt); box.appendChild(l1); box.appendChild(l2);
+  body.appendChild(logo); body.appendChild(nm); body.appendChild(vv);
+  body.appendChild(intro); body.appendChild(priv); body.appendChild(box);
+  page.appendChild(head); page.appendChild(body);
+  document.getElementById('app').appendChild(page);
+  aboutPageEl = page;
+}
+
+if (brandEl) {   // 自测 shim 无此元素：整块跳过
+  brandEl.addEventListener('dblclick', function () {
+    if (bmenuState.open) closeBrandMenu(); else openBrandMenu();
   });
   document.addEventListener('pointerdown', function (e) {   // 点外关闭（捕获阶段，同日历）
-    if (!aboutState.open || !aboutState.el) return;
-    if (aboutState.el.contains(e.target)) return;
-    if (aboutBtn.contains(e.target)) return;
-    closeAbout();
+    if (!bmenuState.open || !bmenuState.el) return;
+    if (bmenuState.el.contains(e.target)) return;
+    if (brandEl.contains(e.target)) return;
+    closeBrandMenu();
   }, true);
-  document.addEventListener('click', function (e) {         // 卡内委托：✕ 关闭
-    if (!aboutState.open || !aboutState.el) return;
-    if (!aboutState.el.contains(e.target)) return;
-    if (e.target.closest('.about-close')) closeAbout();
+  document.addEventListener('click', function (e) {         // 菜单内委托：下载按钮
+    if (!bmenuState.open || !bmenuState.el) return;
+    if (!bmenuState.el.contains(e.target)) return;
+    if (e.target.closest('.bm-download')) downloadUpdate();
   });
-  document.addEventListener('keydown', function (e) {       // Esc
-    if (e.key === 'Escape' && aboutState.open) closeAbout();
+  document.addEventListener('keydown', function (e) {       // Esc：先关菜单，再关关于页
+    if (e.key !== 'Escape') return;
+    if (bmenuState.open) closeBrandMenu();
+    else if (aboutPageEl) closeAboutPage();
   });
 }
+
 
 /* ============================================================
    F16 分区标题显示模式（design §V）：默认精简（徽标+角标），hover 标题行
