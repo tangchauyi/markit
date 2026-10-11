@@ -1105,7 +1105,7 @@ border-left-color: var(--bar-dropped);       /* v1.8a：放弃=固定灰，彻�
   gap: 6px;
   padding: 0 0 2px;
 }
-.bm-upd-row .bm-item { flex: none; }
+.bm-upd-row .bm-item { flex: none; width: auto; }  /* 覆盖 .bm-item 的 width:100%，否则按钮占满整行把状态文字挤出菜单外 */
 .bm-status {
   margin-left: auto;
   font-size: 11px;
