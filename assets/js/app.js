@@ -93,10 +93,10 @@ var toast = document.getElementById('toast');
 var undoBtn = document.getElementById('undoBtn');
 
 var EMPTY_TEXT = {
-  0: 'Double-click to add the most urgent thing',
-  1: 'Double-click to add something important',
-  2: 'Double-click to add something urgent',
-  3: 'Double-click to jot down anything'
+  0: '双击此处，先记下最要紧的事',   // §J 空态文案规格四条，2026-10-11 英文化回归后恢复
+  1: '双击此处，安排重要的事',
+  2: '双击此处，记下急事先处理',
+  3: '双击此处，随手记点什么'
 };
 var ZONE_NAMES = {
   0: 'P0 重要且紧急',
@@ -1309,7 +1309,7 @@ function renderCalMonth(dir) {
   if (!grid || !title) return;
   var y = calState.y, m = calState.m;
 
-  title.textContent = ['January','February','March','April','May','June','July','August','September','October','November','December'][m] + ' ' + y;     // 「2026年2月」格式（§N）
+  title.textContent = y + '年' + (m + 1) + '月';   // 「2026年2月」格式（§N）
   title.style.transition = 'none';                   // 120ms fade 同步（§N）
   title.style.opacity = '0';
   void title.offsetWidth;
@@ -1438,7 +1438,7 @@ function renderCalDetail() {
   if (!calState.selKey) {
     var hint = document.createElement('div');      // 默认提示（§P）
     hint.className = 'cal-hint';
-    hint.textContent = 'Pick a day to revisit your notes';
+    hint.textContent = '点一个日期，回看那天的记录';   // §P 默认提示原文
     inner.appendChild(hint);
   } else {
     var evts = eventsForDay(calState.selKey);
@@ -1446,7 +1446,7 @@ function renderCalDetail() {
     if (total === 0) {
       var empty = document.createElement('div');   // 空态日期（§O）
       empty.className = 'cal-empty-day';
-      empty.textContent = 'No notes on this day';
+      empty.textContent = '这天没有留下记录';   // §O 空态日期原文
       empty.appendChild(buildScribble());          // 马克笔划线 opacity 0.5
       inner.appendChild(empty);
     } else {
