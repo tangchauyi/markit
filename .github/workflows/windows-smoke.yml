@@ -26,10 +26,17 @@ jobs:
       - name: Smoke from source (MARKIT_SMOKE)
         env:
           MARKIT_SMOKE: '1'
+          ELECTRON_ENABLE_LOGGING: '1'   # Windows 下 Electron 脱离控制台，须显式开启日志落 stderr
         shell: bash
         run: |
-          set -o pipefail
-          npx electron . 2>&1 | tee smoke-source.log
+          # 不用管道：electron 的 crashpad 子进程会长期握住 stdout 管道，
+          # `| tee` 永远等不到 EOF。改为后台运行 + 轮询日志文件
+          MARKIT_SMOKE=1 npx electron . > smoke-source.log 2>&1 &
+          for i in $(seq 1 60); do
+            grep -qE "SMOKE (DONE ALL PASS|FAIL)" smoke-source.log && break
+            sleep 2
+          done
+          cat smoke-source.log
           grep -q "SMOKE DONE ALL PASS" smoke-source.log
 
       - name: Build NSIS installer
