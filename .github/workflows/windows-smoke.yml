@@ -51,7 +51,8 @@ jobs:
       - name: Silent install (NSIS /S)
         shell: powershell
         run: |
-          $installer = Get-ChildItem "dist" -Filter "Setup *.exe" | Select-Object -First 1
+          $installer = Get-ChildItem "dist" -Filter "*Setup*.exe" | Select-Object -First 1
+          if (-not $installer) { throw "no installer exe found in dist" }
           Write-Host "installer: $($installer.FullName)"
           Start-Process $installer.FullName -ArgumentList "/S" -Wait
           Start-Sleep -Seconds 3
