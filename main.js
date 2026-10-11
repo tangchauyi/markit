@@ -26,6 +26,12 @@ if (process.env.MARKIT_SMOKE) {
   // 预置一条含 </script> 的笔记，验证注入转义
   try { fs.writeFileSync(path.join(app.getPath('userData'), 'markit-notes.json'),
     JSON.stringify([{ id: 'seed1', text: 'a</script>b', priority: 0, createdAt: 1 }])); } catch (e) {}
+  /* v1.0.3：主进程未捕获异常 → 直接以非零码退出并打印。
+     否则 Electron 弹错误对话框阻塞 CI（截图实锤过），且流程步骤仍显示绿 */
+  process.on('uncaughtException', (e) => {
+    console.log('SMOKE FAIL: uncaughtException ' + ((e && e.stack) || e));
+    app.exit(4);
+  });
 }
 
 const SCHEME = 'markit';
@@ -69,7 +75,9 @@ function loadWindowState() {
 }
 
 function saveWindowState() {
-  if (!win) return;
+  /* v1.0.3 修复：Windows 真机截图抓到 closed 事件里 getPosition 抛
+     "Object has been destroyed"。加销毁守卫，关闭路径不再崩 */
+  if (!win || win.isDestroyed()) return;
   const [x, y] = win.getPosition();
   writeJsonSafe(STATE_FILE, { x, y, collapsed, pinned });
 }
@@ -173,7 +181,10 @@ function createWindow() {
   };
   win.on('moved', scheduleSave);
   win.on('resized', scheduleSave);
-  win.on('closed', () => { saveWindowState(); win = null; });
+  /* v1.0.3：落盘时机从 closed 挪到 close —— closed 触发时窗口已销毁拿不到坐标；
+     close 在销毁前触发，可安全读取最终位置 */
+  win.on('close', saveWindowState);
+  win.on('closed', () => { win = null; });
 
   if (process.env.MARKIT_SMOKE) runSmoke();
 }
@@ -243,7 +254,10 @@ function runSmoke() {
       if (e[0] !== 360 || e[1] !== 640) return fail('展开尺寸不符');
       console.log('SMOKE DONE ALL PASS');
       clearTimeout(watchdog);
-      app.exit(0);
+      /* v1.0.3：补测正常关窗路径（close → closed → window-all-closed → quit），
+         覆盖 saveWindowState 销毁时序；2s 兑底强退防挂起 */
+      try { win.close(); } catch (e) {}
+      setTimeout(() => app.exit(0), 2000);
     }).catch((e) => fail(e.message));
   }, 600));
 }

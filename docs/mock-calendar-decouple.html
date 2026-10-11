@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Mark it! 日历解耦逻辑 Mock（2026年10月）</title>
+<style>
+  /* token 摘自 design.md v1.5/§Q/§N/§O */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "SF Pro", "PingFang SC", sans-serif;
+    background: #E8E8ED; padding: 32px 20px; display: flex; gap: 28px;
+    justify-content: center; align-items: flex-start; flex-wrap: wrap; min-width: 1100px;
+  }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .caption { font-size: 13px; font-weight: 700; color: #1D1D1F; }
+  .caption small { display: block; font-weight: 400; color: #6D6D72; margin-top: 3px; }
+  /* 下拉卡片 §Q：288px、圆角12、毛玻璃 */
+  .cal-card {
+    width: 288px; max-height: 460px; border-radius: 12px;
+    background: rgba(242,242,247,.97); border: 1px solid rgba(0,0,0,.08);
+    box-shadow: 0 8px 24px rgba(0,0,0,.18);
+    padding: 8px 12px 8px;
+  }
+  .cal-head { height: 26px; display: flex; align-items: center; justify-content: center; gap: 4px; position: relative; }
+  .cal-title { font-size: 13px; font-weight: 700; color: #1D1D1F; }
+  .cal-nav { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+    border: none; background: none; color: #8E8E93; cursor: pointer; border-radius: 6px; font-size: 12px; }
+  .cal-nav:hover { background: rgba(0,0,0,.04); }
+  .cal-week { height: 18px; margin-top: 4px; display: grid; grid-template-columns: repeat(7,1fr); }
+  .cal-week span { font-size: 11px; font-weight: 600; color: #8E8E93; text-align: center; }
+  .cal-grid { margin-top: 2px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .cal-day { height: 34px; border-radius: 8px; position: relative; display: flex;
+    align-items: flex-start; justify-content: center; cursor: pointer; }
+  .cal-day:hover { background: rgba(0,0,0,.04); }
+  .cal-day .num { font-size: 12px; color: #1D1D1F; margin-top: 4px; position: relative; z-index: 1; }
+  .cal-day.future { color: #C7C7CC; cursor: default; }
+  .cal-day.future .num { color: #C7C7CC; }
+  .cal-day.future:hover { background: none; }
+  /* 今天环：22px 渐变描边 §N(v1.5改值) */
+  .cal-day.today .num { width: 22px; height: 22px; border-radius: 50%; font-weight: 600;
+    border: 2px solid transparent; display: flex; align-items: center; justify-content: center; margin-top: 1px;
+    background: linear-gradient(#fff0,#fff0) padding-box,
+      linear-gradient(135deg,#FA5C8D 0%,#FBAF5D 100%) border-box; }
+  /* 选中日：24px 单端实底 */
+  .cal-day.selected .num { width: 24px; height: 24px; border-radius: 50%; background: #FA5C8D; color: #fff;
+    font-weight: 700; margin-top: 0; text-shadow: 0 1px 2px rgba(0,0,0,.25); }
+  /* 记录点 4×4 渐变 §N */
+  .cal-dot { position: absolute; bottom: 5px; left: 50%; margin-left: -2px; width: 4px; height: 4px;
+    border-radius: 50%; background: linear-gradient(135deg,#FA5C8D 0%,#FBAF5D 100%); }
+  .cal-day.selected .cal-dot { background: #FFFFFFE6; }
+  /* 详情区 §O/§S */
+  .cal-detail { margin-top: 6px; max-height: 174px; overflow-y: auto; border-top: 1px solid rgba(0,0,0,.06); padding-top: 6px; }
+  .cal-hint { font-size: 12px; color: #6D6D72; text-align: center; padding: 18px 0; }
+  .gh { margin-bottom: 6px; }
+  .gh-head { height: 22px; display: flex; align-items: center; gap: 6px; }
+  .gh-head svg { width: 12px; height: 12px; }
+  .gh-name { font-size: 12px; font-weight: 700; color: #1D1D1F; }
+  .gh-count { margin-left: auto; font-size: 11px; font-weight: 600; color: #6D6D72; }
+  .ev { height: 26px; border-radius: 8px; background: rgba(255,255,255,.8); margin-bottom: 4px;
+    display: flex; align-items: center; padding: 0 8px; font-size: 12px; color: #1D1D1F;
+    border-left: 4px solid #FF3B30; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev.p2 { border-left-color: #FFCC00; }
+  .ev.done { color: #8E8E93; text-decoration: line-through 1.5px; border-left-color: rgba(255,204,0,.4); background: rgba(255,255,255,.6); }
+  .legend { width: 944px; max-width: 96vw; background: rgba(255,255,255,.75); border: 1px solid rgba(0,0,0,.06);
+    border-radius: 12px; padding: 14px 18px; font-size: 13px; color: #1D1D1F; line-height: 1.7; }
+  .legend b { color: #FA5C8D; }
+  .legend .dot-i { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: linear-gradient(135deg,#FA5C8D,#FBAF5D); vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<div class="col">
+  <div class="caption">场景 A：mark 条 10.10 创建，之后无任何操作
+    <small>10.12 打开日历 → 只 10.10 有粉点，10.11 干净</small>
+  </div>
+  <div class="cal-card">
+    <div class="cal-head">
+      <button class="cal-nav">‹</button><div class="cal-title">2026年10月</div><button class="cal-nav">›</button>
+    </div>
+    <div class="cal-week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+    <div class="cal-grid" id="grid-a"></div>
+    <div class="cal-detail"><div class="cal-hint">点一个日期，回看那天的记录</div></div>
+  </div>
+</div>
+
+<div class="col">
+  <div class="caption">场景 B：mark 条 10.10 创建，10.11 标「完成」
+    <small>解耦后：10.10（新建）与 10.11（完成）各一点</small>
+  </div>
+  <div class="cal-card">
+    <div class="cal-head">
+      <button class="cal-nav">‹</button><div class="cal-title">2026年10月</div><button class="cal-nav">›</button>
+    </div>
+    <div class="cal-week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+    <div class="cal-grid" id="grid-b"></div>
+    <div class="cal-detail"><div class="cal-hint">点一个日期，回看那天的记录</div></div>
+  </div>
+</div>
+
+<div class="col">
+  <div class="caption">场景 C：10.12 点开 10.10 那天
+    <small>详情区「新建」组里看到这条 mark（哪怕它已被完成）</small>
+  </div>
+  <div class="cal-card">
+    <div class="cal-head">
+      <button class="cal-nav">‹</button><div class="cal-title">2026年10月</div><button class="cal-nav">›</button>
+    </div>
+    <div class="cal-week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+    <div class="cal-grid" id="grid-c"></div>
+    <div class="cal-detail">
+      <div class="gh">
+        <div class="gh-head">
+          <svg viewBox="0 0 16 16" fill="none" stroke="#FA5C8D" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12.9l.8-2.7 7.7-7.7a1.2 1.2 0 0 1 1.7 0l.3.3a1.2 1.2 0 0 1 0 1.7l-7.7 7.7z"/></svg>
+          <span class="gh-name">新建</span><span class="gh-count">1</span>
+        </div>
+        <div class="ev">把必吃榜踩雷诊断报告发给老板</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  说明：今日 = <b>10.12</b>（渐变描边环）。记录点 <span class="dot-i"></span> = 该日发生过事件（新建 createdAt / 最近一次完成或放弃 statusAt，2026-10-11 起解耦：创建日永远留点，状态日独立另计）。
+  场景 B 点 10.11 时详情显示「完成」组；点 10.10 时显示「新建」组——同一笔记两天各答各的问题。
+</div>
+
+<script>
+  // 2026年10月：1号是周四
+  var firstDay = 3, daysInMonth = 31, today = 12;
+  var dotDaysA = {10: true};              // 场景A：仅 10.10 新建
+  var dotDaysB = {10: true, 11: true};    // 场景B：10.10 新建 + 10.11 完成
+  var dotDaysC = dotDaysB;
+  function build(id, dots, selected) {
+    var g = document.getElementById(id);
+    for (var i = 0; i < firstDay; i++) {
+      var pad = document.createElement('div'); pad.style.height = '34px'; g.appendChild(pad);
+    }
+    for (var d = 1; d <= daysInMonth; d++) {
+      var c = document.createElement('div'); c.className = 'cal-day';
+      if (d > today) c.classList.add('future');
+      if (d === today) c.classList.add('today');
+      if (d === selected) c.classList.add('selected');
+      var num = document.createElement('div'); num.className = 'num'; num.textContent = d; c.appendChild(num);
+      if (dots[d]) { var dot = document.createElement('div'); dot.className = 'cal-dot'; c.appendChild(dot); }
+      g.appendChild(c);
+    }
+  }
+  build('grid-a', dotDaysA, null);
+  build('grid-b', dotDaysB, null);
+  build('grid-c', dotDaysC, 10);
+</script>
+</body>
+</html>

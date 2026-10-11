@@ -18,3 +18,13 @@ docs/README-share.md
 /demo-userdata/
 /.mock-userdata/
 /.mock-lang-*/
+
+# 宣传视频与逐帧素材（体积大，仅本地保留，不入库）
+*.mp4
+*.mov
+transition-frames*/
+promo-assets/
+promo-frames*/
+promo-tts*/
+promo-subs*/
+promo-cards*/
