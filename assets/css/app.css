@@ -1035,7 +1035,7 @@ border-left-color: var(--bar-dropped);       /* v1.8a：放弃=固定灰，彻�
   right: 12px;                   /* 右缘对齐顶栏右缘 12px 内缩（§Q） */
   z-index: 20;
   width: 288px;                  /* 宽 288px（§Q） */
-  max-height: 460px;             /* 6 行月 worst case 上限（§Q） */
+  max-height: min(460px, calc(100vh - 60px)); /* F35b：双上限——正常窗高沿用 460px（§Q 6行月预算），矮窗时随窗高收缩（顶栏48+底缘12），根治 <520px 时卡片底缘被裁 */
   border-radius: 12px;
   padding: 8px 12px 8px;         /* 内边距 8/12/8（§Q） */
   background: var(--cal-card-bg);

@@ -27,6 +27,9 @@ if (process.env.MARKIT_SMOKE) {
   // 预置一条含 </script> 的笔记，验证注入转义
   try { fs.writeFileSync(path.join(app.getPath('userData'), 'markit-notes.json'),
     JSON.stringify([{ id: 'seed1', text: 'a</script>b', priority: 0, createdAt: 1 }])); } catch (e) {}
+  /* F33：预置「坏状态」——折叠态 + 屏幕外坐标，验证启动恢复必须展开且位置被 clamp */
+  try { fs.writeFileSync(path.join(app.getPath('userData'), 'window-state.json'),
+    JSON.stringify({ x: 0, y: 99999, collapsed: true, pinned: true })); } catch (e) {}
   /* v1.0.3：主进程未捕获异常 → 直接以非零码退出并打印。
      否则 Electron 弹错误对话框阻塞 CI（截图实锤过），且流程步骤仍显示绿 */
   process.on('uncaughtException', (e) => {
@@ -46,6 +49,8 @@ const STATE_FILE = path.join(app.getPath('userData'), 'window-state.json');
 
 const SIZE_EXPANDED = { width: 360, height: 640 };
 const SIZE_COLLAPSED = { width: 128, height: 40 };
+const MIN_EXPANDED = { width: 320, height: 480 };  // F35：展开态最小可用尺寸（低于此顶栏/分区挤压变形）
+let savedSize = null;                              // F35：上次展开态自定义尺寸（胶囊态不记录）
 
 function readJsonSafe(file, fallback) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
@@ -64,12 +69,20 @@ let collapsed = false;
 let pinned = false; // 固定（置顶）默认关，由 renderer 图钉按钮控制
 let saveStateTimer = null;
 
-/* ---------- 窗口状态（位置 + 收起态）记忆 ---------- */
+/* ---------- 窗口状态（位置 + 收起态 + 自定义尺寸）记忆 ---------- */
 function loadWindowState() {
   const s = readJsonSafe(STATE_FILE, null);
   if (s && Number.isFinite(s.x) && Number.isFinite(s.y)) {
-    collapsed = !!s.collapsed;
-  pinned = !!s.pinned;
+    /* F33（v1.0.9）：不再恢复折叠态——胶囊仅 128x40，记忆坐标落在贴边/角落时
+       形同「打不开」。每次启动一律展开，位置在 createWindow 里按展开尺寸
+       clamp 保证整面板可见；会话内的折叠/展开行为不变。 */
+    collapsed = false;
+    pinned = !!s.pinned;
+    /* F35：恢复展开态自定义尺寸；非法/低于最小尺寸回默认（F33 同款兜底） */
+    if (Number.isFinite(s.w) && Number.isFinite(s.h) &&
+        s.w >= MIN_EXPANDED.width && s.h >= MIN_EXPANDED.height) {
+      savedSize = { width: s.w, height: s.h };
+    }
     return { x: s.x, y: s.y };
   }
   return null;
@@ -80,7 +93,17 @@ function saveWindowState() {
      "Object has been destroyed"。加销毁守卫，关闭路径不再崩 */
   if (!win || win.isDestroyed()) return;
   const [x, y] = win.getPosition();
-  writeJsonSafe(STATE_FILE, { x, y, collapsed, pinned });
+  /* F35：仅展开态记录自定义尺寸；胶囊 128x40 不算数（展开时用回原尺寸） */
+  const [w, h] = win.getSize();
+  if (!collapsed && Number.isFinite(w) && Number.isFinite(h) &&
+      w >= MIN_EXPANDED.width && h >= MIN_EXPANDED.height) {
+    savedSize = { width: w, height: h };
+  }
+  writeJsonSafe(STATE_FILE, {
+    x, y, collapsed, pinned,
+    w: savedSize ? savedSize.width : SIZE_EXPANDED.width,
+    h: savedSize ? savedSize.height : SIZE_EXPANDED.height
+  });
 }
 
 function clampToWorkArea(x, y, size) {
@@ -137,7 +160,8 @@ function registerAppScheme() {
 /* ---------- 窗口 ---------- */
 function createWindow() {
   const saved = loadWindowState();
-  const size = collapsed ? SIZE_COLLAPSED : SIZE_EXPANDED;
+  /* F35：展开态用上次自定义尺寸（无则默认）；恢复/默认停靠 clamp 均按实际尺寸算 */
+  const size = collapsed ? SIZE_COLLAPSED : (savedSize || SIZE_EXPANDED);
   let pos;
   if (saved) {
     pos = clampToWorkArea(saved.x, saved.y, size);
@@ -153,7 +177,9 @@ function createWindow() {
     x: pos.x,
     y: pos.y,
     frame: false,
-    resizable: false,
+    /* F35（v1.0.10）：macOS 无边框窗口 resizable:true 即原生支持边缘拖拽缩放
+       （系统级 NSTWindow 行为）；Windows 无边框不支持原生边缘 resize，维持 false */
+    resizable: IS_MAC,
     alwaysOnTop: pinned,
     /* 平台化窗口材质（v1.0.1 Windows 修复）：
        - macOS：透明窗 + vibrancy 毛玻璃（原设计）
@@ -176,6 +202,12 @@ function createWindow() {
   });
 
   win.once('ready-to-show', () => win.show());
+  /* F35：按当前形态设最小尺寸（展开 320x480；胶囊锁 128x40）。
+     minWidth/minHeight 创建参数与收起态 128x40 冲突，故创建后按态设置 */
+  win.setMinimumSize(
+    collapsed ? SIZE_COLLAPSED.width : MIN_EXPANDED.width,
+    collapsed ? SIZE_COLLAPSED.height : MIN_EXPANDED.height
+  );
   /* 兜底：个别 GPU 环境下 ready-to-show 可能不触发，1.5s 后强制显示 */
   setTimeout(() => { if (win && !win.isDestroyed() && !win.isVisible()) win.show(); }, 1500);
   if (pinned) win.setAlwaysOnTop(true, 'floating');
@@ -211,6 +243,14 @@ function runSmoke() {
     app.exit(1);
     throw new Error('SMOKE_ABORT');
   };
+  /* F33 断言：预置的坏状态（collapsed:true + 屏幕外 y）恢复后必须展开 + 位置 clamp 进工作区 */
+  const rsz = win.getSize();
+  const [rpx, rpy] = win.getPosition();
+  const rwa = screen.getPrimaryDisplay().workArea;
+  console.log('SMOKE restore: ' + rsz[0] + 'x' + rsz[1] + ' @' + rpx + ',' + rpy);
+  if (rsz[0] !== 360 || rsz[1] !== 640) fail('F33 启动恢复了折叠态（应一律展开）');
+  if (rpx < rwa.x || rpx > rwa.x + rwa.width - 360 ||
+      rpy < rwa.y || rpy > rwa.y + rwa.height - 640) fail('F33 恢复位置未被 clamp 到工作区');
   win.webContents.once('did-finish-load', () => setTimeout(() => {
     const probe = `(function () {
       var injected = Array.isArray(window.__MARKIT_NOTES__) && window.__MARKIT_NOTES__.length === 1
@@ -260,12 +300,42 @@ function runSmoke() {
       const e = win.getSize();
       console.log('SMOKE expanded: ' + e[0] + 'x' + e[1] + ' pass=' + (e[0] === 360 && e[1] === 640));
       if (e[0] !== 360 || e[1] !== 640) return fail('展开尺寸不符');
-      console.log('SMOKE DONE ALL PASS');
-      clearTimeout(watchdog);
-      /* v1.0.3：补测正常关窗路径（close → closed → window-all-closed → quit），
-         覆盖 saveWindowState 销毁时序；2s 兑底强退防挂起 */
-      try { win.close(); } catch (e) {}
-      setTimeout(() => app.exit(0), 2000);
+      /* F35：手动缩放被接受 + 低于最小尺寸被钳制 + 尺寸落盘
+         （macOS resize 带动画，getSize 前需等动画结束，否则读到中间帧） */
+      win.setSize(400, 700);
+      return new Promise((res) => setTimeout(res, 300)).then(() => {
+        const r1 = win.getSize();
+        console.log('SMOKE resize: ' + r1[0] + 'x' + r1[1] + ' pass=' + (r1[0] === 400 && r1[1] === 700));
+        if (r1[0] !== 400 || r1[1] !== 700) return fail('F35 自定义尺寸未被接受');
+        win.setSize(200, 300);
+        return new Promise((res) => setTimeout(res, 300));
+      }).then(() => {
+        const r2 = win.getSize();
+        console.log('SMOKE minclamp: ' + r2[0] + 'x' + r2[1] + ' pass=' + (r2[0] === 320 && r2[1] === 480) +
+          ' min=' + JSON.stringify(win.getMinimumSize()));
+        if (r2[0] !== 320 || r2[1] !== 480) return fail('F35 最小尺寸未钳制');
+        saveWindowState();
+        const st35 = readJsonSafe(STATE_FILE, null);
+        const persist35 = st35 && st35.w === 320 && st35.h === 480;
+        console.log('SMOKE sizepersist: ' + persist35);
+        if (!persist35) return fail('F35 自定义尺寸未落盘');
+      /* F35b：收起后再展开，应回到自定义尺寸而非默认 360x640 */
+      return win.webContents.executeJavaScript('window.markitHost.setCollapsed(true)')
+        .then(() => new Promise((res) => setTimeout(res, 300)))
+        .then(() => win.webContents.executeJavaScript('window.markitHost.setCollapsed(false)'))
+        .then(() => new Promise((res) => setTimeout(res, 300)))
+        .then(() => {
+          const e2 = win.getSize();
+          console.log('SMOKE reexpand: ' + e2[0] + 'x' + e2[1] + ' pass=' + (e2[0] === 320 && e2[1] === 480));
+          if (e2[0] !== 320 || e2[1] !== 480) return fail('F35b 展开未回自定义尺寸');
+          console.log('SMOKE DONE ALL PASS');
+          clearTimeout(watchdog);
+          /* v1.0.3：补测正常关窗路径（close → closed → window-all-closed → quit），
+             覆盖 saveWindowState 销毁时序；2s 兑底强退防挂起 */
+          try { win.close(); } catch (e) {}
+          setTimeout(() => app.exit(0), 2000);
+        });
+      });
     }).catch((e) => fail(e.message));
   }, 600));
 }
@@ -292,11 +362,19 @@ ipcMain.on('markit:set-collapsed', (_event, value) => {
   const target = !!value;
   if (target === collapsed) return;
   collapsed = target;
-  const size = collapsed ? SIZE_COLLAPSED : SIZE_EXPANDED;
+  /* F35：展开用上次自定义尺寸（无则默认）；收起仍锁 128x40 */
+  const size = collapsed ? SIZE_COLLAPSED : (savedSize || SIZE_EXPANDED);
   // macOS 无边框 + resizable:false 时直接 setBounds 可能被忽略，先临时放开
+  // （mac 自 v1.0.10 起常驻 resizable，此 toggle 对其无害；Windows 仍需）
   win.setResizable(true);
-  win.setSize(size.width, size.height); // 左上角锚定，收起后顶栏原位变胶囊
-  win.setResizable(false);
+  /* 最小尺寸随形态切换（展开=MIN_EXPANDED 恒定值，而非当前尺寸——否则用户
+     缩到 330x500 后再收起展开，最小值会被顶到 330x500 下不去） */
+  win.setMinimumSize(
+    collapsed ? SIZE_COLLAPSED.width : MIN_EXPANDED.width,
+    collapsed ? SIZE_COLLAPSED.height : MIN_EXPANDED.height
+  );
+  win.setSize(size.width, size.height);        // 左上角锚定，收起后顶栏原位变胶囊
+  win.setResizable(IS_MAC);                    // F35：mac 常驻可缩放；Windows 维持不可缩放
   saveWindowState();
 });
 

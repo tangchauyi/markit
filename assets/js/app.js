@@ -312,9 +312,16 @@ function reportDailyPing() {
 }
 reportDailyPing();                                             // 启动当天立即补一条
 setInterval(reportDailyPing, 30 * 60 * 1000);                  // 每半小时检查跨天
+/* F32：跨天监视——应用挂着过夜时，隔夜闭合事项到点自动从面板消失 */
+var __renderDayKey = localDayKey();
+function checkDayRollover() {
+  var k = localDayKey();
+  if (k !== __renderDayKey) { __renderDayKey = k; render(); }
+}
+setInterval(checkDayRollover, 60 * 1000);                      // 每分钟盯一次跨天
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', function () {
-    if (!document.hidden) reportDailyPing();                   // 唤醒/切回时兜底检查
+    if (!document.hidden) { checkDayRollover(); reportDailyPing(); }  // 唤醒/切回：先补跨天重渲染，再兜底检查
   });
 }
 
@@ -330,6 +337,19 @@ var STATUS_RANK = { open: 0, done: 1, dropped: 2 };   // F22 三组固定顺序�
    movedAt 为 0（新建 / 存量旧数据）时按 createdAt 兜底。 */
 function zoneEnterAt(n) {
   return (n.movedAt > 0 ? n.movedAt : n.createdAt) || 0;
+}
+
+/* F32（v1.0.9）：已闭合事项（done/dropped）次日起不再出现在面板。
+   用户预期：昨天完成的「周报整理」今天不该还挂在看板上。
+   判定键 = statusAt（存量数据缺失时兜底 createdAt），早于今天零点即视为隔夜；
+   仅渲染层过滤，数据层不动——日历统计、撤销恢复、persist 均不受影响。 */
+function closedAgedOut(n) {
+  if (n.status !== 'done' && n.status !== 'dropped') return false;
+  var closedAt = n.statusAt || n.createdAt || 0;
+  if (closedAt <= 0) return false;
+  var d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return closedAt < d.getTime();          // 今天零点前闭合 → 隔夜隐藏
 }
 
 /* F22 渲染层排序（决策点 37）：返回排序副本，不改原数组。
@@ -358,6 +378,7 @@ function render() {
   var grouped = { 0: [], 1: [], 2: [], 3: [] };
   var openCount = { 0: 0, 1: 0, 2: 0, 3: 0 };
   notes.forEach(function (n) {
+    if (closedAgedOut(n)) return;        // F32：隔夜的 done/dropped 不进面板（含空态判定与角标）
     grouped[n.priority].push(n);
     if (n.status === 'open') openCount[n.priority]++;  // F12：分区角标只计普通态
   });
@@ -1207,7 +1228,7 @@ function openInlineInput(zone, p) {
   var input = document.createElement('input');
   input.className = 'inline-input';
   input.type = 'text';
-  input.placeholder = 'Type a note — Enter to save';
+  input.placeholder = I18N.t('placeholder');   // F34：跟随语言（原硬编码英文，中文界面漏翻）
   input.spellcheck = false;
 
   var gwrap = document.createElement('div');
